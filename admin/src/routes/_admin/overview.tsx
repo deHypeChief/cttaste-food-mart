@@ -11,8 +11,8 @@ function RouteComponent() {
   return (
     <>
       <Header
-        title={`${pannelData.name.split(" ")[0]} Overview`}
-        subText={`Welcome to the ${pannelData.name.split(" ")[0]} admin overview.`}
+        title={`${pannelData.name} Overview`}
+        subText={`Welcome to the ${pannelData.name} admin overview.`}
       />
       <OverviewCards />
     </>
