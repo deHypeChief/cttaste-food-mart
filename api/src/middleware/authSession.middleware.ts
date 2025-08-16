@@ -5,12 +5,13 @@ import { SessionClient } from "../components/auth/_model";
 import { IUser, User } from "../components/users/_model";
 import AuthHandler from "../services/authHandler.service";
 import { Admin, IAdmin } from "../components/admin/_model";
+import { Vendor, IVendor } from "../components/vendors/_model";
 
 /**
  * Middleware to check session authentication and role.
- * @param requiredRole - Role required to access the route ("user" | "admin" | null)
+ * @param requiredRole - Role required to access the route ("user" | "admin" | "vendor" | null)
  */
-export const isSessionAuth = (requiredRole: "user" | "admin" | null = null) =>
+export const isSessionAuth = (requiredRole: "user" | "admin" | "vendor" | null = null) =>
     (app: Elysia) =>
         app
             .use(jwtSessionAccess) // Attach access JWT middleware
@@ -92,17 +93,18 @@ export const isSessionAuth = (requiredRole: "user" | "admin" | null = null) =>
                     }
 
                     // Validate session and check role
-                    const session = await validateSession(sessionPayload, set);
+                    const { session: sessionDoc, sessionClient } = await validateSession(sessionPayload, set);
 
                     // If a specific role is required, check if user has it
-                    if (requiredRole && !validateRole(session.session.role, requiredRole)) {
+                    if (requiredRole && !validateRole(sessionDoc.role, requiredRole)) {
                         throw ErrorHandler.UnauthorizedError(
                             set,
                             `Access denied: ${requiredRole} role required`
                         );
                     }
 
-                    return session;
+                    // Expose the session client document and the resolved user/admin/vendor entity
+                    return { session: sessionDoc, sessionClient };
                 } catch (error) {
                     // On any error, clear cookies and rethrow
                     sessionAccess.remove();
@@ -126,8 +128,10 @@ async function validateSession(payload: any, set: any) {
     }
 
     // Fetch the user or admin associated with the session
-    const sessionClient: IAdmin | IUser  = role.includes("admin")
+    const sessionClient: IAdmin | IUser | IVendor = role.includes("admin")
         ? await Admin.findOne({ sessionClientId }).populate("sessionClientId")
+        : role.includes("vendor")
+        ? await Vendor.findOne({ sessionClientId }).populate("sessionClientId")
         : await User.findOne({ sessionClientId }).populate("sessionClientId").select("fullname email role");
     if (!sessionClient) {
         throw ErrorHandler.ValidationError(
@@ -142,9 +146,9 @@ async function validateSession(payload: any, set: any) {
 /**
  * Checks if the user's roles include the required role.
  * @param roles - User's roles (string or array)
- * @param requiredRole - Role required ("user" | "admin")
+ * @param requiredRole - Role required ("user" | "admin" | "vendor")
  */
-function validateRole(roles: string | string[], requiredRole: "user" | "admin") {
+function validateRole(roles: string | string[], requiredRole: "user" | "admin" | "vendor") {
     const roleArray = Array.isArray(roles) ? roles : [roles];
 
     if (requiredRole === "user") {
@@ -155,6 +159,10 @@ function validateRole(roles: string | string[], requiredRole: "user" | "admin") 
     if (requiredRole === "admin") {
         // return roleArray.includes("admin");
         return roleArray.some(role => ["admin"].includes(role));
+    }
+    
+    if (requiredRole === "vendor") {
+        return roleArray.some(role => ["vendor"].includes(role));
     }
 
     return false;

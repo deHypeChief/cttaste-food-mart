@@ -1,38 +1,45 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { DashboardCard, LargeCard } from "../../components/dashboardCard";
 import { Input, FormField } from "../../components/form";
 import Button from "../../components/button";
 import Switch from "../../components/switch";
+import LogoutButton from "../../components/LogoutButton.jsx";
+import { vendorAuthService } from "../../api/auth";
+import { vendorService } from "../../api/vendor";
+import { useToast } from "../../components/toast.jsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/dialog.jsx";
 
 export default function Settings() {
+    const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("profile");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const bannerInputRef = useRef(null);
+    const avatarInputRef = useRef(null);
+
     const [profileData, setProfileData] = useState({
-        restaurantName: "Taste Palace",
-        ownerName: "John Doe",
-        email: "john@tastepalace.com",
-        phone: "+234 803 123 4567",
-        address: "15 Victoria Island, Lagos",
-        description: "We serve the best Nigerian and Continental dishes",
-        cuisine: "Nigerian, Continental",
-        avatar: null
+        restaurantName: "",
+        ownerName: "",
+        phoneNumber: "",
+        address: "",
+        description: "",
+        cuisine: "",
+        avatar: "",
+        banner: "",
+        isActive: true,
     });
 
     const [businessSettings, setBusinessSettings] = useState({
-        minimumOrder: "5000",
-        deliveryFee: "1500",
-        deliveryRadius: "10",
-        preparationTime: "30",
-        currency: "NGN",
-        taxRate: "7.5"
+        minimumOrder: "",
+        deliveryFee: "",
+        preparationTime: "",
     });
 
     const [notifications, setNotifications] = useState({
         orderNotifications: true,
         emailNotifications: true,
-        smsNotifications: false,
-        promotionalEmails: true,
-        weeklyReports: true
     });
 
     const [operationalSettings, setOperationalSettings] = useState({
@@ -44,10 +51,12 @@ export default function Settings() {
     });
 
     const [security, setSecurity] = useState({
-        twoFactorAuth: false,
         loginAlerts: true,
-        passwordLastChanged: "2024-07-15"
     });
+
+    const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+    const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    const [pwLoading, setPwLoading] = useState(false);
 
     const tabs = [
         { id: "profile", label: "Restaurant Profile", icon: "majesticons:user-line" },
@@ -55,8 +64,47 @@ export default function Settings() {
         { id: "operations", label: "Operations", icon: "majesticons:settings-line" },
         { id: "notifications", label: "Notifications", icon: "majesticons:bell-line" },
         { id: "security", label: "Security", icon: "majesticons:lock-line" },
-        { id: "payment", label: "Payment & Billing", icon: "majesticons:credit-card-line" }
+        // Payment tab hidden for now
     ];
+
+    // Load current vendor profile on mount
+    useEffect(() => {
+        (async () => {
+            try {
+                setLoading(true);
+                const res = await vendorAuthService.getStatus();
+                const v = res?.data?.vendor || {};
+                setProfileData(prev => ({
+                    ...prev,
+                    restaurantName: v.restaurantName || "",
+                    ownerName: v.ownerName || "",
+                    phoneNumber: v.phoneNumber || "",
+                    address: v.address || "",
+                    description: v.description || "",
+                    cuisine: v.cuisine || "",
+                    avatar: v.avatar || "",
+                    banner: v.banner || "",
+                    isActive: v.isActive !== undefined ? v.isActive : true,
+                }));
+                setBusinessSettings({
+                    minimumOrder: String(v.minimumOrder ?? ""),
+                    deliveryFee: String(v.deliveryFee ?? ""),
+                    preparationTime: String(v.preparationTime ?? ""),
+                });
+                setNotifications({
+                    orderNotifications: v.orderNotifications !== undefined ? v.orderNotifications : true,
+                    emailNotifications: v.emailNotifications !== undefined ? v.emailNotifications : true,
+                });
+                setSecurity({
+                    loginAlerts: v.loginAlerts !== undefined ? v.loginAlerts : true,
+                });
+            } catch (e) {
+                setError(e.message || 'Failed to load settings');
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, []);
 
     const handleProfileUpdate = (field, value) => {
         setProfileData(prev => ({ ...prev, [field]: value }));
@@ -76,6 +124,104 @@ export default function Settings() {
 
     const handleSecurityToggle = (field) => {
         setSecurity(prev => ({ ...prev, [field]: !prev[field] }));
+    };
+
+    const handlePasswordSave = async () => {
+        try {
+            if (!pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword) {
+                toast.error('All fields are required');
+                return;
+            }
+            if (pwForm.newPassword.length < 6) {
+                toast.error('New password must be at least 6 characters');
+                return;
+            }
+            if (pwForm.newPassword !== pwForm.confirmPassword) {
+                toast.error('Passwords do not match');
+                return;
+            }
+            setPwLoading(true);
+            await vendorAuthService.changePassword({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
+            toast.success('Password updated');
+            setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+            setShowPasswordDialog(false);
+        } catch (e) {
+            toast.error(e.message || 'Failed to update password');
+        } finally {
+            setPwLoading(false);
+        }
+    };
+
+    // Save handlers
+    const saveProfile = async () => {
+        try {
+            setLoading(true); setError(""); setSuccess("");
+            const payload = {
+                restaurantName: profileData.restaurantName,
+                ownerName: profileData.ownerName,
+                phoneNumber: profileData.phoneNumber,
+                address: profileData.address,
+                description: profileData.description,
+                cuisine: profileData.cuisine,
+                isActive: profileData.isActive,
+            };
+            await vendorAuthService.updateProfile(payload);
+            setSuccess('Profile updated');
+        } catch (e) { setError(e.message || 'Failed to update profile'); }
+        finally { setLoading(false); }
+    };
+
+    const saveBusiness = async () => {
+        try {
+            setLoading(true); setError(""); setSuccess("");
+            const payload = {
+                minimumOrder: businessSettings.minimumOrder ? Number(businessSettings.minimumOrder) : undefined,
+                deliveryFee: businessSettings.deliveryFee ? Number(businessSettings.deliveryFee) : undefined,
+                preparationTime: businessSettings.preparationTime ? Number(businessSettings.preparationTime) : undefined,
+            };
+            await vendorAuthService.updateBusinessSettings(payload);
+            setSuccess('Business settings updated');
+        } catch (e) { setError(e.message || 'Failed to update business settings'); }
+        finally { setLoading(false); }
+    };
+
+    const saveOperations = async () => {
+        try {
+            setLoading(true); setError(""); setSuccess("");
+            const payload = { ...operationalSettings, ...notifications };
+            await vendorAuthService.updateOperationalSettings(payload);
+            setSuccess('Operational settings updated');
+        } catch (e) { setError(e.message || 'Failed to update operations'); }
+        finally { setLoading(false); }
+    };
+
+    const uploadBanner = async (file) => {
+        if (!file) return;
+        try {
+            setLoading(true); setError(""); setSuccess("");
+            const res = await vendorService.uploadBanner(file);
+            const v = res?.data?.vendor;
+            setProfileData(prev => ({ ...prev, banner: v?.banner || prev.banner }));
+            setSuccess('Banner updated');
+        } catch (e) { setError(e.message || 'Failed to upload banner'); }
+        finally { setLoading(false); }
+    };
+
+    const uploadAvatar = async (file) => {
+        if (!file) return;
+        const MAX = 2 * 1024 * 1024; // 2MB
+        if (file.size > MAX) {
+            toast.error('Logo exceeds 2MB limit', 'Upload failed');
+            return;
+        }
+        try {
+            setLoading(true); setError(""); setSuccess("");
+            const res = await vendorService.uploadAvatar(file);
+            const v = res?.data?.vendor;
+            setProfileData(prev => ({ ...prev, avatar: v?.avatar || prev.avatar }));
+            setSuccess('Logo updated');
+        } catch (e) { setError(e.message || 'Failed to upload logo'); }
+        finally { setLoading(false); }
     };
 
     return (
@@ -107,16 +253,39 @@ export default function Settings() {
                 <div className="space-y-6">
                     <LargeCard title="Restaurant Profile" icon="majesticons:user-line">
                         <div className="space-y-6">
-                            {/* Avatar Upload */}
-                            <div className="flex items-center gap-6">
-                                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-                                    <Icon icon="majesticons:image-line" className="w-8 h-8 text-gray-400" />
+                            {/* Logo, Banner + Availability */}
+                            <div className="space-y-4">
+                                {/* Logo */}
+                                <div className="flex items-center gap-4">
+                                    <div className="w-20 h-20 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center">
+                                        {profileData.avatar ? (
+                                            <img src={profileData.avatar} alt="Logo" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Icon icon="majesticons:image-line" className="w-6 h-6 text-gray-400" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
+                                        <Button variant="outlineFade" size="sm" onClick={() => avatarInputRef.current?.click()}>Upload Logo</Button>
+                                        <p className="text-xs text-gray-500 mt-1">PNG or JPG up to 2MB</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <Button variant="outlineFade" size="sm">
-                                        Upload Logo
-                                    </Button>
-                                    <p className="text-sm text-gray-500 mt-1">JPG, PNG or GIF. Max size 2MB</p>
+
+                                <div className="w-full h-40 bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center relative">
+                                    {profileData.banner ? (
+                                        <img src={profileData.banner} alt="Banner" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="text-gray-500 text-sm flex items-center gap-2"><Icon icon="majesticons:image-line"/> Banner image</div>
+                                    )}
+                                    <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
+                                    <Button variant="outlineFade" size="sm" className="absolute bottom-2 right-2" onClick={() => bannerInputRef.current?.click()}>Upload Banner</Button>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <h3 className="font-medium text-gray-900">Restaurant Availability</h3>
+                                        <p className="text-sm text-gray-600">Toggle to set your restaurant online/offline</p>
+                                    </div>
+                                    <Switch checked={profileData.isActive} onChange={(val) => setProfileData(p => ({...p, isActive: val}))} />
                                 </div>
                             </div>
 
@@ -137,19 +306,10 @@ export default function Settings() {
                                     />
                                 </FormField>
 
-                                <FormField label="Email Address" required>
-                                    <Input
-                                        type="email"
-                                        value={profileData.email}
-                                        onChange={(e) => handleProfileUpdate("email", e.target.value)}
-                                        placeholder="Enter email address"
-                                    />
-                                </FormField>
-
                                 <FormField label="Phone Number" required>
                                     <Input
-                                        value={profileData.phone}
-                                        onChange={(e) => handleProfileUpdate("phone", e.target.value)}
+                                        value={profileData.phoneNumber}
+                                        onChange={(e) => handleProfileUpdate("phoneNumber", e.target.value)}
                                         placeholder="Enter phone number"
                                     />
                                 </FormField>
@@ -180,9 +340,11 @@ export default function Settings() {
                                 />
                             </FormField>
 
+                            {error && <p className="text-sm text-red-600">{error}</p>}
+                            {success && <p className="text-sm text-green-600">{success}</p>}
                             <div className="flex justify-end gap-3">
-                                <Button variant="outline">Cancel</Button>
-                                <Button variant="primary">Save Changes</Button>
+                                <Button variant="outline" onClick={() => window.location.reload()}>Cancel</Button>
+                                <Button variant="primary" onClick={saveProfile} disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</Button>
                             </div>
                         </div>
                     </LargeCard>
@@ -212,15 +374,6 @@ export default function Settings() {
                                 />
                             </FormField>
 
-                            <FormField label="Delivery Radius (km)">
-                                <Input
-                                    type="number"
-                                    value={businessSettings.deliveryRadius}
-                                    onChange={(e) => handleBusinessUpdate("deliveryRadius", e.target.value)}
-                                    placeholder="10"
-                                />
-                            </FormField>
-
                             <FormField label="Average Preparation Time (mins)">
                                 <Input
                                     type="number"
@@ -229,33 +382,11 @@ export default function Settings() {
                                     placeholder="30"
                                 />
                             </FormField>
-
-                            <FormField label="Tax Rate (%)">
-                                <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={businessSettings.taxRate}
-                                    onChange={(e) => handleBusinessUpdate("taxRate", e.target.value)}
-                                    placeholder="7.5"
-                                />
-                            </FormField>
-
-                            <FormField label="Currency">
-                                <select 
-                                    value={businessSettings.currency}
-                                    onChange={(e) => handleBusinessUpdate("currency", e.target.value)}
-                                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                >
-                                    <option value="NGN">Nigerian Naira (₦)</option>
-                                    <option value="USD">US Dollar ($)</option>
-                                    <option value="GBP">British Pound (£)</option>
-                                </select>
-                            </FormField>
+                            {/* Currency fixed to NGN, Tax rate removed */}
                         </div>
-
                         <div className="flex justify-end gap-3 pt-6 border-t">
-                            <Button variant="outline">Reset</Button>
-                            <Button variant="primary">Update Settings</Button>
+                            <Button variant="outline" onClick={() => window.location.reload()}>Reset</Button>
+                            <Button variant="primary" onClick={saveBusiness} disabled={loading}>{loading ? 'Saving...' : 'Update Settings'}</Button>
                         </div>
                     </LargeCard>
                 </div>
@@ -352,37 +483,9 @@ export default function Settings() {
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
-                                    <h3 className="font-medium text-gray-900">SMS Notifications</h3>
-                                    <p className="text-sm text-gray-600">Get SMS alerts for urgent matters</p>
-                                </div>
-                                <Switch
-                                    checked={notifications.smsNotifications}
-                                    onChange={() => handleNotificationToggle("smsNotifications")}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
-                                    <h3 className="font-medium text-gray-900">Promotional Emails</h3>
-                                    <p className="text-sm text-gray-600">Marketing tips and platform updates</p>
-                                </div>
-                                <Switch
-                                    checked={notifications.promotionalEmails}
-                                    onChange={() => handleNotificationToggle("promotionalEmails")}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
-                                    <h3 className="font-medium text-gray-900">Weekly Reports</h3>
-                                    <p className="text-sm text-gray-600">Weekly sales and performance reports</p>
-                                </div>
-                                <Switch
-                                    checked={notifications.weeklyReports}
-                                    onChange={() => handleNotificationToggle("weeklyReports")}
-                                />
+                            {/* Only order and email notifications remain */}
+                            <div className="flex justify-end">
+                                <Button variant="primary" onClick={saveOperations} disabled={loading}>{loading ? 'Saving...' : 'Save Preferences'}</Button>
                             </div>
                         </div>
                     </LargeCard>
@@ -396,17 +499,6 @@ export default function Settings() {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                 <div>
-                                    <h3 className="font-medium text-gray-900">Two-Factor Authentication</h3>
-                                    <p className="text-sm text-gray-600">Add extra security to your account</p>
-                                </div>
-                                <Switch
-                                    checked={security.twoFactorAuth}
-                                    onChange={() => handleSecurityToggle("twoFactorAuth")}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
                                     <h3 className="font-medium text-gray-900">Login Alerts</h3>
                                     <p className="text-sm text-gray-600">Get notified of new login attempts</p>
                                 </div>
@@ -416,13 +508,14 @@ export default function Settings() {
                                 />
                             </div>
 
+                            {/* Password change would open a separate flow; link retained */}
                             <div className="p-4 bg-gray-50 rounded-lg">
                                 <div className="flex items-center justify-between mb-4">
                                     <div>
                                         <h3 className="font-medium text-gray-900">Password</h3>
-                                        <p className="text-sm text-gray-600">Last changed: {security.passwordLastChanged}</p>
+                                        <p className="text-sm text-gray-600">Keep your account secure by changing your password regularly.</p>
                                     </div>
-                                    <Button variant="outlineFade" size="sm">
+                                    <Button variant="outlineFade" size="sm" onClick={() => setShowPasswordDialog(true)}>
                                         Change Password
                                     </Button>
                                 </div>
@@ -433,74 +526,41 @@ export default function Settings() {
                                 <p className="text-sm text-red-700 mb-4">
                                     These actions are permanent and cannot be undone
                                 </p>
-                                <div className="flex gap-3">
-                                    <Button variant="outline" size="sm">
-                                        Deactivate Account
-                                    </Button>
-                                    <Button variant="outline" size="sm">
-                                        Delete Account
-                                    </Button>
+                                <div className="flex gap-3 flex-wrap">
+                                    <LogoutButton variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" />
+                                    <Button variant="outline" size="sm" onClick={async () => { try { await vendorService.deleteVendor(); window.location.href = '/'; } catch (e) { setError(e.message || 'Failed to delete'); }}}>Delete Account</Button>
                                 </div>
                             </div>
                         </div>
                     </LargeCard>
                 </div>
             )}
-
-            {/* Payment Settings */}
-            {activeTab === "payment" && (
-                <div className="space-y-6">
-                    <LargeCard title="Payment & Billing" icon="majesticons:credit-card-line">
-                        <div className="space-y-6">
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                                <h3 className="font-medium text-gray-900 mb-2">Bank Account</h3>
-                                <p className="text-sm text-gray-600 mb-4">Account for receiving payments</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField label="Bank Name">
-                                        <Input placeholder="Select your bank" />
-                                    </FormField>
-                                    <FormField label="Account Number">
-                                        <Input placeholder="Enter account number" />
-                                    </FormField>
-                                    <FormField label="Account Name">
-                                        <Input placeholder="Account holder name" />
-                                    </FormField>
-                                </div>
-                            </div>
-
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                                <h3 className="font-medium text-gray-900 mb-2">Subscription Plan</h3>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium">Basic Plan</p>
-                                        <p className="text-sm text-gray-600">₦5,000/month • Up to 100 orders</p>
-                                    </div>
-                                    <Button variant="outlineFade" size="sm">
-                                        Upgrade Plan
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                                <h3 className="font-medium text-gray-900 mb-2">Payment History</h3>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span>August 2024 Subscription</span>
-                                        <span className="text-green-600">₦5,000</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span>July 2024 Subscription</span>
-                                        <span className="text-green-600">₦5,000</span>
-                                    </div>
-                                </div>
-                                <Button variant="outlineFade" size="sm" className="mt-4">
-                                    View All Transactions
-                                </Button>
-                            </div>
-                        </div>
-                    </LargeCard>
-                </div>
-            )}
+            
+            {/* Change Password Dialog */}
+            <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Change Password</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                        <FormField label="Current Password" required>
+                            <Input type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} placeholder="Enter current password" />
+                        </FormField>
+                        <FormField label="New Password" required>
+                            <Input type="password" value={pwForm.newPassword} onChange={(e) => setPwForm(p => ({ ...p, newPassword: e.target.value }))} placeholder="Enter new password" />
+                        </FormField>
+                        <FormField label="Confirm New Password" required>
+                            <Input type="password" value={pwForm.confirmPassword} onChange={(e) => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} placeholder="Re-enter new password" />
+                        </FormField>
+                    </div>
+                    <DialogFooter className="mt-6">
+                        <Button variant="outline" onClick={() => setShowPasswordDialog(false)} disabled={pwLoading}>Cancel</Button>
+                        <Button variant="primary" onClick={handlePasswordSave} disabled={pwLoading}>{pwLoading ? 'Saving...' : 'Update Password'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
+// Inline password change dialog component usage is above; no export necessary.

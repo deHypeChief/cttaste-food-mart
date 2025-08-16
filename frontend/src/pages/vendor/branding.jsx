@@ -11,7 +11,7 @@ const plans = [
     period: "/ Week",
     features: [
       "Feature as one of the Top 4 Restaurants of the Week",
-      "Exclusive CTTaste Marketing Campaigns",
+      "Exclusive Now Now Marketing Campaigns",
       "Guaranteed Sales Boost of at Least 30%"
     ],
     buttonText: "Choose Plan",
@@ -24,7 +24,7 @@ const plans = [
     period: "/ Month",
     features: [
       "Feature as one of the Top 4 Restaurants of the Week",
-      "Exclusive CTTaste Marketing Campaigns",
+      "Exclusive Now Now Marketing Campaigns",
       "One(1) Custom Graphic Design",
       "Guaranteed Sales Boost of at Least 30%"
     ],
@@ -66,7 +66,7 @@ export default function Branding() {
             </div>
             
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Promote your brand on CTTaste for a token!
+              Promote your brand on Now Now for a token!
             </h2>
             
             <p className="text-gray-600 text-lg">
@@ -136,7 +136,7 @@ export default function Branding() {
 
       {/* Additional Information */}
       <div className="mt-12">
-        <LargeCard title="Why Choose CTTaste Branding?" icon="majesticons:star-line">
+        <LargeCard title="Why Choose Now Now Branding?" icon="majesticons:star-line">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-6">
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">

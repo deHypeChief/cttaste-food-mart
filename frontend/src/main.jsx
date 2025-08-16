@@ -24,41 +24,68 @@ import Analysis from './pages/vendor/analysis'
 import Branding from './pages/vendor/branding'
 import Delivery from './pages/vendor/delivery'
 import Settings from './pages/vendor/settings'
+import { AuthProvider } from './contexts/AuthContext.jsx'
+import CartProvider from './contexts/CartProvider.jsx'
+import ApiDebugger from './components/ApiDebugger.jsx'
+import { ProtectedUserRoute, ProtectedVendorRoute, PublicRoute } from './components/ProtectedRoute.jsx'
+import { ToastProvider } from './components/toast.jsx'
 
 
 createRoot(document.getElementById('root')).render(
 	<StrictMode>
-		<BrowserRouter>
-			<Routes>
-				<Route path="/" element={<UserLayout />} >
-					<Route index element={<Explore />} />
-					<Route path='/vendor/:vendorName' element={<VendorInfo />} />
-					<Route path='/cart' element={<Cart />} />
-					<Route path='/checkout' element={<Checkout />} />
-				</Route>
+		<ToastProvider>
+			<AuthProvider>
+				<CartProvider>
+				<BrowserRouter>
+				<Routes>
+					<Route path="/" element={<UserLayout />} >
+						<Route index element={<Explore />} />
+						<Route path='/vendor/:vendorName' element={<VendorInfo />} />
+						<Route path='/cart' element={<Cart />} />
+						<Route path='/checkout' element={<Checkout />} />
+					</Route>
 
-				<Route path="/user" element={<UserProfileLayout />}>
-					<Route index element={<Profile />} />
-					<Route path='/user/favorite' element={<Favorite />} />
-					<Route path='/user/orders' element={<Orders />} />
-				</Route>
+					<Route path="/user" element={
+						<ProtectedUserRoute>
+							<UserProfileLayout />
+						</ProtectedUserRoute>
+					}>
+						<Route index element={<Profile />} />
+						<Route path='profile' element={<Profile />} />
+						<Route path='favorite' element={<Favorite />} />
+						<Route path='orders' element={<Orders />} />
+					</Route>
 
-				<Route path="/vendor" element={<VendorLayout />} >
-					<Route path='/vendor/dashboard' element={<Dashboard />} />
-					<Route path='/vendor/orders' element={<VendorOrders />} />
-					<Route path='/vendor/hours' element={<WorkingHours />} />
-					<Route path='/vendor/menu' element={<MenuList />} />
-					<Route path='/vendor/analysis' element={<Analysis />} />
-					<Route path='/vendor/promotion' element={<Branding />} />
-					<Route path='/vendor/delivery' element={<Delivery />} />
-					<Route path='/vendor/settings' element={<Settings />} />
-				</Route>
+					<Route path="/vendor" element={
+						<ProtectedVendorRoute>
+							<VendorLayout />
+						</ProtectedVendorRoute>
+					} >
+						<Route index element={<Dashboard />} />
+						<Route path='dashboard' element={<Dashboard />} />
+						<Route path='orders' element={<VendorOrders />} />
+						<Route path='hours' element={<WorkingHours />} />
+						<Route path='menu' element={<MenuList />} />
+						<Route path='analysis' element={<Analysis />} />
+						<Route path='promotion' element={<Branding />} />
+						<Route path='delivery' element={<Delivery />} />
+						<Route path='settings' element={<Settings />} />
+					</Route>
 
-				<Route path="/auth" element={<AuthLayout />}>
-					<Route path="/auth/login" element={<Login />} />
-					<Route path="/auth/register" element={<Register />} />
-				</Route>
-			</Routes>
-		</BrowserRouter>
-	</StrictMode>,
+					<Route path="/auth" element={
+						<PublicRoute>
+							<AuthLayout />
+						</PublicRoute>
+					}>
+						<Route path="/auth/login" element={<Login />} />
+						<Route path="/auth/register" element={<Register />} />
+					</Route>
+					
+					<Route path="/debug" element={<ApiDebugger />} />
+				</Routes>
+			</BrowserRouter>
+				</CartProvider>
+		</AuthProvider>
+	</ToastProvider>
+</StrictMode>,
 )

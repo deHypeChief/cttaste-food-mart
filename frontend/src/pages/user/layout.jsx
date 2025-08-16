@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Footer from "../../components/footer";
 import Navbar from "../../components/navbar";
+import LogoutButton from "../../components/LogoutButton.jsx";
 
 export default function UserLayout() {
     return (
@@ -10,6 +11,7 @@ export default function UserLayout() {
                 <Outlet />
             </main>
             <Footer />
+            {/* User logout button positioned for easy access */}
         </>
     )
 }

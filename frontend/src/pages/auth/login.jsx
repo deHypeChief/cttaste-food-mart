@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import Button from "../../components/button";
 import { Input } from "../../components/form";
 import { Form, FormField } from "../../components/form";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { userAuthService, vendorAuthService } from "../../api/auth.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 export default function Login() {
     const [form, setForm] = useState({ email: "", password: "" });
     const [errors, setErrors] = useState({ email: "", password: "" });
     const [activeType, setActiveType] = useState("vendor");
+    const [isLoading, setIsLoading] = useState(false);
+    const { setUser, setVendor, setUserType, checkUserAuthStatus, checkVendorAuthStatus } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -17,16 +22,89 @@ export default function Login() {
         }
     }, []);
 
-    const onSubmit = () => {
-        console.log("Form data:", form);
+    const onSubmit = async () => {
+        console.log('=== LOGIN FORM SUBMISSION STARTED ===');
+        console.log('Form state:', form);
+        console.log('Active type:', activeType);
+        
         const next = { email: "", password: "" };
         if (!form.email) next.email = "Email is required";
         if (!form.password) next.password = "Password is required";
         setErrors(next);
+        
+        console.log('Validation errors:', next);
+        
         if (!next.email && !next.password) {
-            // submit logic here
-            console.log("Submitting form:", form);
-            // e.g., call API
+            console.log('Validation passed, proceeding with login...');
+            setIsLoading(true);
+            try {
+                let response;
+                
+                if (activeType === "vendor") {
+                    console.log('Attempting vendor login with:', { email: form.email, password: form.password ? '[HIDDEN]' : 'MISSING' });
+                    console.log('Form data being sent:', { email: form.email, password: form.password ? 'present' : 'missing' });
+                    
+                    response = await vendorAuthService.login(form);
+                    console.log('Vendor login response:', response);
+                    console.log('Response structure:', {
+                        success: response?.success,
+                        data: response?.data,
+                        vendor: response?.data?.vendor,
+                        session: response?.data?.session
+                    });
+                    
+                    if (response && response.success) {
+                        console.log('Setting vendor data:', response.data);
+                        setVendor(response.data);
+                        setUserType('vendor');
+                        try { localStorage.setItem('auth.type', 'vendor'); } catch (e) { console.debug('localStorage set failed', e); }
+                        // Confirm via dedicated vendor status
+                        await checkVendorAuthStatus();
+                        navigate('/vendor');
+                    } else {
+                        console.error('Vendor login failed - no success flag');
+                    }
+                } else {
+                    console.log('Attempting customer login with:', { email: form.email });
+                    response = await userAuthService.login(form);
+                    console.log('Customer login response:', response);
+                    
+                    if (response.success) {
+                        setUser(response.data.user || response.data);
+                        setUserType('customer');
+                        try { localStorage.setItem('auth.type', 'user'); } catch (e) { console.debug('localStorage set failed', e); }
+                        // Confirm via dedicated user status
+                        await checkUserAuthStatus();
+                        navigate('/');
+                    }
+                }
+                
+                console.log("Login successful:", response);
+            } catch (error) {
+                console.error("Login failed:", error);
+                
+                let errorMessage = "Login failed. Please check your credentials.";
+                
+                if (error.status === 401) {
+                    if (activeType === "vendor") {
+                        errorMessage = "Vendor login failed. Please check your email and password, or ensure your vendor account has been approved.";
+                    } else {
+                        errorMessage = "Invalid email or password. Please try again.";
+                    }
+                } else if (error.status === 403) {
+                    errorMessage = "Account not approved or access denied.";
+                } else if (error.status === 404) {
+                    errorMessage = "Account not found. Please check your email or register first.";
+                }
+                
+                setErrors({ 
+                    email: "",
+                    password: "",
+                    submit: error.message || errorMessage
+                });
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -89,9 +167,12 @@ export default function Login() {
                                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                             />
                         </FormField>
-                        <Button type="submit" className="w-full py-3">
-                            Login
+                        <Button type="submit" className="w-full py-3" disabled={isLoading}>
+                            {isLoading ? "Signing in..." : "Login"}
                         </Button>
+                        {errors.submit && (
+                            <p className="text-red-500 text-sm mt-2">{errors.submit}</p>
+                        )}
                     </Form>
 
                     <div className="flex justify-between">

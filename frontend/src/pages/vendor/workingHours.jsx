@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { Input } from "../../components/form";
 import Button from "../../components/button";
 import Switch from "../../components/switch";
+import { vendorService } from "../../api/vendor";
 
 const daysOfWeek = [
   "Monday",
@@ -25,6 +26,36 @@ export default function WorkingHours() {
       }
     }), {})
   );
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Load existing working hours from API
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await vendorService.getWorkingHours();
+        const data = res?.data?.workingHours || res?.workingHours || {};
+        // Merge with defaults to ensure all days exist
+        const merged = daysOfWeek.reduce((acc, day) => ({
+          ...acc,
+          [day]: {
+            isOpen: data?.[day]?.isOpen ?? true,
+            startTime: data?.[day]?.startTime ?? "09:00",
+            closingTime: data?.[day]?.closingTime ?? "18:00",
+          }
+        }), {});
+        setWorkingHours(merged);
+      } catch (e) {
+        setError(e.message || 'Failed to load working hours');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const handleToggleDay = (day, isOpen) => {
     setWorkingHours(prev => ({
@@ -46,9 +77,28 @@ export default function WorkingHours() {
     }));
   };
 
-  const handleSave = () => {
-    console.log("Saving working hours:", workingHours);
-    // Add your save logic here
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+      // Optional simple validation: ensure HH:MM format
+      const timeRegex = /^\d{2}:\d{2}$/;
+      for (const day of daysOfWeek) {
+        const d = workingHours[day];
+        if (d.isOpen && (!timeRegex.test(d.startTime) || !timeRegex.test(d.closingTime))) {
+          setError(`Invalid time format for ${day}. Use HH:MM`);
+          setSaving(false);
+          return;
+        }
+      }
+      await vendorService.updateWorkingHours(workingHours);
+      setSuccess('Working hours saved');
+    } catch (e) {
+      setError(e.message || 'Failed to save working hours');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDiscard = () => {
@@ -69,6 +119,9 @@ export default function WorkingHours() {
     <div className="bg-[#fdf6f1] min-h-screen">
       <div className=" mx-auto">
         <h1 className="text-3xl font-semibold mb-8 text-gray-900">Working Hours</h1>
+  {loading && <p className="text-sm mb-4">Loading...</p>}
+  {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+  {success && <p className="text-sm text-green-600 mb-4">{success}</p>}
         
         <div className="bg-white rounded-xl p-8 shadow-sm">
           <div className="space-y-6">
@@ -120,12 +173,8 @@ export default function WorkingHours() {
           
           {/* Action Buttons */}
           <div className="flex items-center gap-4 mt-8 pt-6 border-t border-gray-200">
-            <Button
-              onClick={handleSave}
-              variant="primary"
-              className="px-8"
-            >
-              Save
+            <Button onClick={handleSave} variant="primary" className="px-8" disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
             </Button>
             <Button
               onClick={handleDiscard}

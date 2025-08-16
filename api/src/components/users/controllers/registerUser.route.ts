@@ -11,12 +11,12 @@ import { rewardReferralChain } from "../../../services/referalToken.service";
 const registerUser = new Elysia()
     .post("/register", async ({ set, body, query }) => {
 
-        const validRoles = ["user", "agent"]
-        const { email, password, fullName, phoneNumber, dateOfBirth, username, gender, profile, referalToken } = body;
+        const validRoles = ["user"]
+        const { email, password, fullName, phoneNumber, dateOfBirth, username, gender, profile, referalToken, school } = body;
         const { role } = query
         try {
             if (!role || !validRoles.includes(role)) {
-                return ErrorHandler.ValidationError(set, "Invalid role provided")
+                return ErrorHandler.ValidationError(set, "Invalid role provided. Only 'user' role is allowed for customer registration.")
             }
 
             const checkEmail = await SessionClient.findOne({ email })
@@ -45,7 +45,8 @@ const registerUser = new Elysia()
                 phoneNumber,
                 dateOfBirth,
                 username,
-                gender
+                gender,
+                school
             })
 
             if (!newUser) {

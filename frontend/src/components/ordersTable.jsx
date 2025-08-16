@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icon } from "@iconify/react";
 
-export default function OrdersTable({ columns, data, itemsPerPage = 5 }) {
+export default function OrdersTable({ columns, data, itemsPerPage = 5, onRowClick, emptyText = 'No orders yet' }) {
   const [currentPage, setCurrentPage] = useState(1);
   
   // Calculate pagination
@@ -70,8 +70,24 @@ export default function OrdersTable({ columns, data, itemsPerPage = 5 }) {
             </tr>
           </thead>
           <tbody>
+            {data.length === 0 && (
+              <tr>
+                <td colSpan={columns.length} className="py-10 px-4">
+                  <div className="flex flex-col items-center justify-center text-center text-gray-500">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                      <Icon icon="majesticons:box-line" className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm">{emptyText}</p>
+                  </div>
+                </td>
+              </tr>
+            )}
             {currentData.map((row, idx) => (
-              <tr key={idx} className="border-b border-border/40 last:border-b-0">
+              <tr
+                key={idx}
+                className={`border-b border-border/40 last:border-b-0 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                onClick={() => onRowClick && onRowClick(row)}
+              >
                 {columns.map((col) => (
                   <td key={col.key} className="py-3 px-4 text-gray-600 text-sm whitespace-nowrap">
                     {row[col.key]}

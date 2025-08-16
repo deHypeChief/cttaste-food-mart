@@ -16,7 +16,29 @@ const logout = new Elysia()
         } catch (error) {
             return ErrorHandler.ServerError(
                 set,
-                "Error fetching loging out",
+                "Error logging out",
+                error
+            );
+        }
+    }, {
+        detail: {
+            tags: ['Auth Session']
+        }
+    })
+    .post("/logout", async ({ set, cookie: { sessionAccess, sessionRefresh } }) => {
+        try {
+            // Clear the session cookie
+            sessionAccess.remove();
+            sessionRefresh.remove();
+
+            return SuccessHandler(
+                set,
+                "You have been logged out successfully"
+            );
+        } catch (error) {
+            return ErrorHandler.ServerError(
+                set,
+                "Error logging out",
                 error
             );
         }

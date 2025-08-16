@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Switch({
     checked = false,
@@ -9,6 +9,11 @@ export default function Switch({
     ...props
 }) {
     const [isChecked, setIsChecked] = useState(checked);
+
+    // Keep internal state in sync with incoming prop changes
+    useEffect(() => {
+        setIsChecked(checked);
+    }, [checked]);
 
     const handleToggle = () => {
         if (disabled) return;

@@ -1,7 +1,7 @@
 import { Icon } from "@iconify/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const chartData = [
+const defaultChartData = [
   { month: "Jan", sales: 45000, orders: 89, revenue: 2250000 },
   { month: "Feb", sales: 52000, orders: 104, revenue: 2600000 },
   { month: "Mar", sales: 48000, orders: 96, revenue: 2400000 },
@@ -31,7 +31,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export function MonthlyChart() {
+export function MonthlyChart({ data }) {
+  const chartData = Array.isArray(data) && data.length ? data : defaultChartData;
   return (
     <div className="space-y-4 w-full">
       {/* Chart Container */}

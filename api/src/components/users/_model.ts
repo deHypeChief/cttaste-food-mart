@@ -6,7 +6,8 @@ export interface IUser {
     dateOfBirth?: Date;
     username: string;
     gender: "male" | "female" | "other";
-    address: string,
+    address: string;
+    school?: string;
     socialInfo: {
         twitter?: string;
         instagram?: string;
@@ -34,6 +35,10 @@ const userSchema = new mongoose.Schema<IUser>({
         required: true,
     },
     address: {
+        type: String,
+        default: ""
+    },
+    school: {
         type: String,
         default: ""
     },

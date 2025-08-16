@@ -3,15 +3,16 @@ import { t } from 'elysia'
 export const UserValidator = {
     create: {
         body: t.Object({
-            profile: t.String(),
+            profile: t.Optional(t.String()),
             username: t.String({ minLength: 3, maxLength: 50 }),
             email: t.String({ format: 'email' }),
             password: t.String({ minLength: 8 }),
             fullName: t.String(),
             phoneNumber: t.String(),
-            gender: t.Enum({ male: 'male', female: 'female', other: 'other' }),
+            gender: t.Enum({ male: 'male', female: 'female', other: 'other', notSpecified: 'notSpecified' }),
             dateOfBirth: t.String({ format: 'date' }),
-            referalToken: t.String()
+            referalToken: t.Optional(t.String()),
+            school: t.Optional(t.String())
         }),
         query: t.Object({
             role: t.Enum({ user: 'user' }, {
@@ -28,7 +29,7 @@ export const UserValidator = {
                         username: t.String(),
                         phoneNumber: t.String(),
                         dateOfBirth: t.String({ format: 'date-time' }),
-                        gender: t.Enum({ male: 'male', female: 'female', other: 'other' }),
+                        gender: t.Enum({ male: 'male', female: 'female', other: 'other', notSpecified: 'notSpecified' }),
                         _id: t.String(),
                         createdAt: t.String({ format: 'date-time' }),
                         updatedAt: t.String({ format: 'date-time' }),
@@ -56,7 +57,7 @@ export const UserValidator = {
                     username: t.String(),
                     phoneNumber: t.String(),
                     dateOfBirth: t.String(),
-                    gender: t.Enum({ male: 'male', female: 'female', other: 'other' }),
+                    gender: t.Enum({ male: 'male', female: 'female', other: 'other', notSpecified: 'notSpecified' }),
                     __v: t.Number()
                 })
             })
@@ -128,7 +129,7 @@ export const UserValidator = {
                         username: t.String(),
                         phoneNumber: t.String(),
                         dateOfBirth: t.String({ format: 'date-time' }),
-                        gender: t.Enum({ male: 'male', female: 'female', other: 'other' }),
+                        gender: t.Enum({ male: 'male', female: 'female', other: 'other', notSpecified: 'notSpecified' }),
                         __v: t.Number()
                     })
                 })

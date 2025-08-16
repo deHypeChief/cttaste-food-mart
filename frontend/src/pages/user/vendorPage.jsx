@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../../components/button";
 import { H1 } from "../../components/typography";
 import { MenueCard } from "../../components/vendor";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/dialog";
+import { useParams, useSearchParams } from "react-router-dom";
+import { vendorService } from "../../api/vendor";
+import { useCart } from "../../hooks/useCart";
 
 export default function VendorInfo() {
+    const { vendorName } = useParams();
+    const [vendor, setVendor] = useState(null);
+    const [menu, setMenu] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [searchParams] = useSearchParams();
+    const { addItem, updateQty, items: cartItems, clear: clearCartDb } = useCart();
     // Track quantities for each menu item by index
-    const [quantities, setQuantities] = useState({
-        0: 0, // Fried Rice 1
-        1: 0, // Fried Rice 2
-        2: 0, // Fried Rice 3
-    });
+    const [quantities, setQuantities] = useState({});
 
     // State for new review form
     const [newReview, setNewReview] = useState({
@@ -103,11 +109,9 @@ export default function VendorInfo() {
     };
 
     const clearCart = () => {
-        setQuantities({
-            0: 0,
-            1: 0,
-            2: 0,
-        });
+        setQuantities({});
+        // Also clear persisted cart so UI stays in sync after refresh
+        clearCartDb?.();
     };
 
     const handleReviewSubmit = () => {
@@ -127,26 +131,73 @@ export default function VendorInfo() {
         }
     };
 
+    // Derive a safe title and slug-to-id workaround if backend adds slug-based lookup later
+    const title = vendor?.restaurantName || 'Vendor';
+
+    useEffect(() => {
+        // Prefer fetching by explicit id if provided in query (?vid=...)
+        (async () => {
+            try {
+                setLoading(true); setError("");
+                const id = searchParams.get('id') || searchParams.get('vid');
+                if (id) {
+                    const res = await vendorService.getPublic(id);
+                    const v = res?.data?.vendor;
+                    if (!v?._id) throw new Error('Vendor not found');
+                    setVendor(v);
+                    const menuRes = await vendorService.getPublicMenu(v._id);
+                    setMenu(menuRes?.data?.items || []);
+                    return;
+                }
+                // Fallback: find the vendor by name via list API (search)
+                const res = await vendorService.list({ search: vendorName, limit: 1 });
+                const found = res?.data?.items?.[0];
+                if (!found) { setError('Vendor not found'); return; }
+                setVendor(found);
+                const menuRes = await vendorService.getPublicMenu(found._id);
+                setMenu(menuRes?.data?.items || []);
+            } catch (e) {
+                setError(e.message || 'Failed to load vendor');
+            } finally { setLoading(false); }
+        })();
+    }, [vendorName, searchParams]);
+
+    // Keep menu quantities in sync with persisted cart on load/refresh
+    useEffect(() => {
+        if (!menu?.length) {
+            setQuantities({});
+            return;
+        }
+        const map = {};
+        menu.forEach((m, idx) => {
+            const found = cartItems?.find(ci => ci.menuItemId === m._id);
+            if (found) map[idx] = found.quantity || 0;
+        });
+        setQuantities(map);
+    }, [menu, cartItems]);
+
     return (
         <div className="mx-20 ml-24">
-            <div className=" h-[55vh] bg-gray-200 mt-10 rounded-lg relative">
+            <div className=" h-[55vh] bg-gray-200 mt-10 rounded-lg relative" style={vendor?.banner ? { backgroundImage: `url(${vendor.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
                 <div className="absolute" />
 
                 <div className="p-10 flex h-full flex-col justify-end">
                     <div className="flex justify-between items-end">
                         <div className="flex gap-5 items-center">
-                            <div className="h-[100px] w-[100px] bg-pink-600 rounded-full" />
+                            <div className="h-[100px] w-[100px] bg-pink-600 rounded-full overflow-hidden">
+                                {vendor?.avatar && <img src={vendor.avatar} alt={title} className="w-full h-full object-cover" />}
+                            </div>
 
                             <div>
                                 <div className="flex gap-2 items-center">
                                     <H1>
-                                        DALISH Restaurant
+                                        {title}
                                     </H1>
                                     <div className="bg-primary flex items-center justify-center text-center text-white h-[30px] w-[30px] rounded-full text-sm font-medium">
                                         <p>5</p>
                                     </div>
                                 </div>
-                                <p>Best Meals with drinks n wines</p>
+                                <p>{vendor?.description || [vendor?.location, vendor?.vendorType].filter(Boolean).join(' • ')}</p>
                             </div>
                         </div>
                         <div>
@@ -282,24 +333,23 @@ export default function VendorInfo() {
                 </div>
 
                 <div className="my-10 grid grid-cols-4 gap-5">
-                    <MenueCard
-                        itemName="Fried Rice"
-                        price={3000}
-                        quantity={quantities[0]}
-                        onQuantityChange={(newQty) => updateQuantity(0, newQty)}
-                    />
-                    <MenueCard
-                        itemName="Fried Rice"
-                        price={3000}
-                        quantity={quantities[1]}
-                        onQuantityChange={(newQty) => updateQuantity(1, newQty)}
-                    />
-                    <MenueCard
-                        itemName="Fried Rice"
-                        price={3000}
-                        quantity={quantities[2]}
-                        onQuantityChange={(newQty) => updateQuantity(2, newQty)}
-                    />
+                    {loading && <div className="col-span-4 text-center opacity-60">Loading menu…</div>}
+                    {error && <div className="col-span-4 text-center text-red-600">{error}</div>}
+                    {!loading && !error && menu.length === 0 && (
+                        <div className="col-span-4 text-center opacity-60">No menu items yet</div>
+                    )}
+            {menu.map((m, idx) => (
+                        <MenueCard
+                            key={m._id}
+                            itemName={m.name}
+                            price={m.price}
+                            image={m.image}
+                            quantity={quantities[idx] || 0}
+                onQuantityChange={(newQty) => updateQuantity(idx, newQty)}
+                onAdd={() => addItem({ vendorId: vendor?._id, menuItemId: m._id, name: m.name, price: m.price, image: m.image, quantity: 1 })}
+                onUpdate={(newQty) => updateQty(m._id, newQty)}
+                        />
+                    ))}
                 </div>
             </div>
         </div>

@@ -1,51 +1,146 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { DashboardCard, LargeCard } from "../../components/dashboardCard";
 import { MonthlyChart } from "../../components/monthlyChart";
 import Button from "../../components/button";
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { ordersService } from "../../api/orders";
 
-// Sample analytics data
-const revenueData = [
-  { month: "Jan", revenue: 2250000, orders: 89, avgOrder: 25280 },
-  { month: "Feb", revenue: 2600000, orders: 104, avgOrder: 25000 },
-  { month: "Mar", revenue: 2400000, orders: 96, avgOrder: 25000 },
-  { month: "Apr", revenue: 3050000, orders: 122, avgOrder: 25000 },
-  { month: "May", revenue: 2900000, orders: 116, avgOrder: 25000 },
-  { month: "Jun", revenue: 3350000, orders: 134, avgOrder: 25000 },
-];
-
-const categoryData = [
-  { name: 'Rice Dishes', value: 35, color: '#fb923c' },
-  { name: 'Soups', value: 25, color: '#3b82f6' },
-  { name: 'Proteins', value: 20, color: '#10b981' },
-  { name: 'Beverages', value: 12, color: '#f59e0b' },
-  { name: 'Others', value: 8, color: '#ef4444' },
-];
-
-const weeklyOrdersData = [
-  { day: 'Mon', orders: 45, revenue: 1125000 },
-  { day: 'Tue', orders: 52, revenue: 1300000 },
-  { day: 'Wed', orders: 38, revenue: 950000 },
-  { day: 'Thu', orders: 61, revenue: 1525000 },
-  { day: 'Fri', orders: 78, revenue: 1950000 },
-  { day: 'Sat', orders: 94, revenue: 2350000 },
-  { day: 'Sun', orders: 67, revenue: 1675000 },
-];
-
-const topItemsData = [
-  { name: "Fried Rice", orders: 156, revenue: 3900000, percentage: 22 },
-  { name: "Jollof Rice", orders: 134, revenue: 3350000, percentage: 19 },
-  { name: "Pepper Soup", orders: 98, revenue: 2450000, percentage: 14 },
-  { name: "Grilled Chicken", orders: 87, revenue: 2175000, percentage: 12 },
-  { name: "Fish Stew", orders: 76, revenue: 1900000, percentage: 11 },
-];
+const PIE_COLORS = ['#fb923c', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
 export default function Analysis() {
   const [selectedPeriod, setSelectedPeriod] = useState("30");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [orders, setOrders] = useState([]);
+
+  // Derived datasets
+  const [revenueTrendData, setRevenueTrendData] = useState([]); // last 6 months
+  const [pieData, setPieData] = useState([]); // top items share in period
+  const [weeklyOrdersData, setWeeklyOrdersData] = useState([]); // last 7 days
+  const [topItemsData, setTopItemsData] = useState([]); // top 5 items list in period
+  const [monthlyChartData, setMonthlyChartData] = useState([]); // 12-month series
+
+  const [cards, setCards] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    avgOrder: 0,
+  });
+
+  // Determine if there is any meaningful data to show
+  const hasData = (orders?.length || 0) > 0 && (
+    Number(cards.totalOrders) > 0 ||
+    Number(cards.totalRevenue) > 0 ||
+    (monthlyChartData || []).some(d => Number(d?.orders) > 0 || Number(d?.revenue) > 0)
+  );
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await ordersService.listVendorOrders();
+        const list = res?.data?.orders || [];
+        setOrders(list);
+
+        // Build 12-month series (current year)
+        const now = new Date();
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const year = now.getFullYear();
+        const monthly = months.map((m, idx) => {
+          const start = new Date(year, idx, 1);
+          const end = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+          const inRange = list.filter(o => {
+            const d = new Date(o.createdAt);
+            return d >= start && d <= end;
+          });
+          const sales = inRange.filter(o => o.status === 'Completed').reduce((s, o) => s + Number(o.total || 0), 0);
+          return { month: m, sales, orders: inRange.length, revenue: sales };
+        });
+        setMonthlyChartData(monthly);
+
+        // Revenue trend for last 6 months (from monthly)
+        setRevenueTrendData(monthly.slice(Math.max(0, monthly.length - 6)));
+      } catch (e) {
+        setError(e.message || 'Failed to load analysis');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  // Recompute period-based datasets when orders or period changes
+  useEffect(() => {
+    if (!orders.length) return;
+
+    const days = Number(selectedPeriod) || 30;
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - (days - 1));
+
+    const inPeriod = orders.filter(o => {
+      const d = new Date(o.createdAt);
+      return d >= start && d <= now;
+    });
+
+    // Cards
+    const revenue = inPeriod.filter(o => o.status === 'Completed').reduce((s, o) => s + Number(o.total || 0), 0);
+    const count = inPeriod.length;
+    setCards({
+      totalRevenue: revenue,
+      totalOrders: count,
+      avgOrder: count ? Math.round(revenue / count) : 0,
+    });
+
+    // Pie data: top items share by revenue in period (top 5)
+    const itemMap = new Map();
+    inPeriod.forEach(o => {
+      (o.items || []).forEach(it => {
+        const key = it.name || String(it.menuItemId);
+        const rev = Number(it.price || 0) * Number(it.quantity || 0);
+        const prev = itemMap.get(key) || { name: key, orders: 0, revenue: 0 };
+        prev.orders += Number(it.quantity || 0);
+        prev.revenue += rev;
+        itemMap.set(key, prev);
+      });
+    });
+    const itemsArr = Array.from(itemMap.values()).sort((a, b) => b.revenue - a.revenue);
+    const top5 = itemsArr.slice(0, 5);
+    const totalRevTop = top5.reduce((s, x) => s + x.revenue, 0) || 1;
+    const pie = top5.map((x, i) => ({ name: x.name, value: Math.round((x.revenue / totalRevTop) * 100), color: PIE_COLORS[i % PIE_COLORS.length] }));
+    setPieData(pie);
+  setTopItemsData(top5.map((x) => ({ name: x.name, orders: x.orders, revenue: x.revenue, percentage: Math.round((x.revenue / totalRevTop) * 100) })));
+
+    // Weekly orders: last 7 days
+    const daysCount = 7;
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const weekSeries = [];
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const startDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      const endDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+      const dayOrders = inPeriod.filter(o => {
+        const od = new Date(o.createdAt);
+        return od >= startDay && od <= endDay;
+      });
+      const dayRevenue = dayOrders.filter(o => o.status === 'Completed').reduce((s, o) => s + Number(o.total || 0), 0);
+      weekSeries.push({ day: dayNames[d.getDay()], orders: dayOrders.length, revenue: dayRevenue });
+    }
+    setWeeklyOrdersData(weekSeries);
+  }, [orders, selectedPeriod]);
 
   return (
     <div className="bg-[#fdf6f1] min-h-screen">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mb-4">
+          {error}
+        </div>
+      )}
+      {loading && (
+        <div className="text-sm text-gray-500 mb-4">Loading analysis…</div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-semibold text-gray-900">Sales Analysis</h1>
         
@@ -65,188 +160,202 @@ export default function Analysis() {
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <DashboardCard
-          title="Total Revenue"
-          value="₦18.5M"
-          subtitle="+12.5% from last month"
-          icon="majesticons:money-line"
-        />
-        <DashboardCard
-          title="Total Orders"
-          value="1,247"
-          subtitle="+8.2% from last month"
-          icon="majesticons:box-line"
-        />
-        <DashboardCard
-          title="Average Order Value"
-          value="₦14,850"
-          subtitle="+3.1% from last month"
-          icon="majesticons:trending-up-line"
-        />
-        <DashboardCard
-          title="Customer Satisfaction"
-          value="4.8/5"
-          subtitle="Based on 234 reviews"
-          icon="majesticons:star-line"
-        />
-      </div>
-
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Revenue Trend */}
-        <LargeCard title="Revenue Trend" icon="majesticons:chart-line">
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#fb923c" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#fb923c" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={12} />
-                <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(value) => `₦${(value / 1000000)}M`} />
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <Tooltip 
-                  formatter={(value) => [`₦${(value / 1000000).toFixed(1)}M`, 'Revenue']}
-                  labelStyle={{ color: '#374151' }}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#fb923c" 
-                  strokeWidth={2}
-                  fill="url(#colorRevenue)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+      {/* Empty/Inactive State */}
+      {!loading && !hasData ? (
+        <div className="bg-white rounded-xl p-10 border border-dashed border-gray-200 text-center mb-8">
+          <div className="mx-auto w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-4">
+            <Icon icon="majesticons:chart-bar-line" className="w-8 h-8 text-orange-500" />
           </div>
-        </LargeCard>
-
-        {/* Sales by Category */}
-        <LargeCard title="Sales by Category" icon="majesticons:pie-chart-line">
-          <div className="h-80 flex items-center justify-center">
-            <div className="w-full h-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={110}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, 'Share']}
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+          <p className="text-gray-800 font-medium">No data yet — try making some sales</p>
+          <p className="text-sm text-gray-500 mt-1">Your analytics will appear here once orders start coming in.</p>
+        </div>
+      ) : (
+        <>
+          {/* Key Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <DashboardCard
+              title="Total Revenue"
+              value={`₦${Number(cards.totalRevenue).toLocaleString()}`}
+              subtitle={`Last ${selectedPeriod} days`}
+              icon="majesticons:money-line"
+            />
+            <DashboardCard
+              title="Total Orders"
+              value={String(cards.totalOrders)}
+              subtitle={`Last ${selectedPeriod} days`}
+              icon="majesticons:box-line"
+            />
+            <DashboardCard
+              title="Average Order Value"
+              value={`₦${Number(cards.avgOrder).toLocaleString()}`}
+              subtitle={`Last ${selectedPeriod} days`}
+              icon="majesticons:trending-up-line"
+            />
+            <DashboardCard
+              title="Customer Satisfaction"
+              value="4.8/5"
+              subtitle="Based on 234 reviews"
+              icon="majesticons:star-line"
+            />
           </div>
-          
-          {/* Legend */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {categoryData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-gray-700">{item.name}</span>
-                </div>
-                <span className="font-medium text-gray-900">{item.value}%</span>
+
+          {/* Charts Row 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Revenue Trend */}
+            <LargeCard title="Revenue Trend" icon="majesticons:chart-line">
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueTrendData}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#fb923c" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#fb923c" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={12} />
+                    <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(value) => `₦${(value / 1000000)}M`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <Tooltip 
+                      formatter={(value) => [`₦${(value / 1000000).toFixed(1)}M`, 'Revenue']}
+                      labelStyle={{ color: '#374151' }}
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="#fb923c" 
+                      strokeWidth={2}
+                      fill="url(#colorRevenue)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        </LargeCard>
-      </div>
+            </LargeCard>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Weekly Orders */}
-        <LargeCard title="Weekly Order Pattern" icon="majesticons:calendar-line">
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weeklyOrdersData}>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={12} />
-                <YAxis axisLine={false} tickLine={false} fontSize={12} />
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    name === 'orders' ? `${value} orders` : `₦${(value / 1000000).toFixed(1)}M`,
-                    name === 'orders' ? 'Orders' : 'Revenue'
-                  ]}
-                  labelStyle={{ color: '#374151' }}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="orders" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </LargeCard>
-
-        {/* Top Performing Items */}
-        <LargeCard title="Top Performing Items" icon="majesticons:trophy-line">
-          <div className="space-y-4">
-            {topItemsData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{item.name}</div>
-                    <div className="text-sm text-gray-500">{item.orders} orders</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-medium text-gray-900">₦{(item.revenue / 1000000).toFixed(1)}M</div>
-                  <div className="text-sm text-gray-500">{item.percentage}%</div>
+            {/* Sales by Category */}
+            <LargeCard title="Top Items Share" icon="majesticons:pie-chart-line">
+              <div className="h-80 flex items-center justify-center">
+                <div className="w-full h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={110}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value) => [`${value}%`, 'Share']}
+                        contentStyle={{ 
+                          backgroundColor: '#fff', 
+                          border: '1px solid #e5e7eb', 
+                          borderRadius: '8px',
+                          fontSize: '12px'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-            ))}
+              
+              {/* Legend */}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {pieData.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-gray-700">{item.name}</span>
+                    </div>
+                    <span className="font-medium text-gray-900">{item.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </LargeCard>
           </div>
-        </LargeCard>
-      </div>
 
-      {/* Monthly Sales Chart */}
-      <div className="mb-8">
-        <LargeCard title="Monthly Sales Overview" icon="majesticons:chart-bar-line">
-          <MonthlyChart />
-        </LargeCard>
-      </div>
+          {/* Charts Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Weekly Orders */}
+            <LargeCard title="Weekly Order Pattern" icon="majesticons:calendar-line">
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weeklyOrdersData}>
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={12} />
+                    <YAxis axisLine={false} tickLine={false} fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <Tooltip 
+                      formatter={(value, name) => [
+                        name === 'orders' ? `${value} orders` : `₦${(value / 1000000).toFixed(1)}M`,
+                        name === 'orders' ? 'Orders' : 'Revenue'
+                      ]}
+                      labelStyle={{ color: '#374151' }}
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="orders" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </LargeCard>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-4">
-        <Button variant="primary" icon="majesticons:download-line">
-          Export Report
-        </Button>
-        <Button variant="outlineFade" icon="majesticons:printer-line">
-          Print Analysis
-        </Button>
-        <Button variant="outlineFade" icon="majesticons:share-line">
-          Share Report
-        </Button>
-      </div>
+            {/* Top Performing Items */}
+            <LargeCard title="Top Performing Items" icon="majesticons:trophy-line">
+              <div className="space-y-4">
+                {topItemsData.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{item.name}</div>
+                        <div className="text-sm text-gray-500">{item.orders} orders</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-medium text-gray-900">₦{(item.revenue / 1000000).toFixed(1)}M</div>
+                      <div className="text-sm text-gray-500">{item.percentage}%</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </LargeCard>
+          </div>
+
+          {/* Monthly Sales Chart */}
+          <div className="mb-8">
+            <LargeCard title="Monthly Sales Overview" icon="majesticons:chart-bar-line">
+              <MonthlyChart data={monthlyChartData} />
+            </LargeCard>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-4">
+            <Button variant="primary" icon="majesticons:download-line">
+              Export Report
+            </Button>
+            <Button variant="outlineFade" icon="majesticons:printer-line">
+              Print Analysis
+            </Button>
+            <Button variant="outlineFade" icon="majesticons:share-line">
+              Share Report
+            </Button>
+          </div>
+        </>
+      )}
+      
     </div>
   );
 }

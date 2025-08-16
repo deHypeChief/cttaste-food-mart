@@ -1,17 +1,60 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import Button from "../../components/button";
+import { useAuth } from "../../hooks/useAuth.js";
 
 export default function VendorLayout() {
     const location = useLocation();
+    const { vendor } = useAuth();
 
     // Function to check if a path is active
     const isActive = (path) => {
         if (path === '/dashboard') {
-            return location.pathname === '/vendor/dashboard' || location.pathname === '/vendor/';
+            return location.pathname === '/vendor/dashboard' || location.pathname === '/vendor' || location.pathname === '/vendor/';
         }
         return location.pathname.includes(path);
     };
+
+    // Helper function to get vendor display name
+    const getVendorDisplayName = () => {
+        if (vendor?.session?.fullName) {
+            return vendor.session.fullName;
+        }
+        if (vendor?.user?.username) {
+            return vendor.user.username;
+        }
+        return '';
+    };
+
+    // Helper function to get vendor profile image
+    const getVendorProfileImage = () => {
+        if (vendor?.session?.profile) {
+            return vendor.session.profile;
+        }
+        return null;
+    };
+
+    // Helper function to get first letter of name
+    const getFirstLetter = () => {
+        const name = getVendorDisplayName();
+        return name ? name.charAt(0).toUpperCase() : 'V';
+    };
+
+    // Sidebar links configuration
+    const mainLinks = [
+        { to: '/vendor/dashboard', active: '/dashboard', icon: 'majesticons:dashboard-line', label: 'Dashboard' },
+        { to: '/vendor/orders', active: '/orders', icon: 'majesticons:shopping-bag-line', label: 'My Orders' },
+        { to: '/vendor/hours', active: '/hours', icon: 'majesticons:clock-line', label: 'Working Hours' },
+        { to: '/vendor/menu', active: '/menu', icon: 'majesticons:menu-line', label: 'Menu List' },
+        { to: '/vendor/analysis', active: '/analysis', icon: 'tabler:coin', label: 'Analysis' },
+        { to: '/vendor/promotion', active: '/promotion', icon: 'majesticons:megaphone-line', label: 'Brand Promotion' },
+        // { to: '/vendor/delivery', active: '/delivery', icon: 'majesticons:truck-line', label: 'Delivery' },
+    ];
+
+    const footerLinks = [
+        { to: '/vendor/support', active: '/support', icon: 'mynaui:support', label: 'Get Support' },
+        { to: '/vendor/settings', active: '/settings', icon: 'lsicon:setting-outline', label: 'Setting' },
+    ];
 
     return (
         <>
@@ -41,7 +84,30 @@ export default function VendorLayout() {
                             <button className="p-2 text-black">
                                 <Icon icon="majesticons:bell-line" className="w-6 h-6" />
                             </button>
-                            <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+                            <Link to="/vendor/settings">
+                                <div className="flex items-center gap-3 cursor-pointer">
+                                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+                                        {getVendorProfileImage() ? (
+                                            <img 
+                                                src={getVendorProfileImage()} 
+                                                alt="Profile" 
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="text-white font-medium text-xs">
+                                                {getFirstLetter()}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {/* {isLoading ? (
+                                        <div className="animate-pulse bg-gray-300 h-4 w-20 rounded"></div>
+                                    ) : (
+                                        <span className="font-medium text-gray-700 hover:text-orange-500 transition-colors hidden sm:block">
+                                            {getVendorDisplayName() || 'Profile'}
+                                        </span>
+                                    )} */}
+                                </div>
+                            </Link>
                         </div>
                     </div>
                 </header>
@@ -51,97 +117,33 @@ export default function VendorLayout() {
                     <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 pt-4">
                         <nav className="p-4 space-y-2 h-full overflow-y-auto flex flex-col justify-between">
                             <div>
-                                <Link to="/vendor/dashboard">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/dashboard')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="majesticons:dashboard-line" className="w-5 h-5" />
-                                        Dashboard
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/orders">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/orders')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="majesticons:shopping-bag-line" className="w-5 h-5" />
-                                        My Orders
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/hours">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/hours')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="majesticons:clock-line" className="w-5 h-5" />
-                                        Working Hours
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/menu">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/menu')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="majesticons:menu-line" className="w-5 h-5" />
-                                        Menu List
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/analysis">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/analysis')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="tabler:coin" className="w-5 h-5" />
-                                        Analysis
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/promotion">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/promotion')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="majesticons:megaphone-line" className="w-5 h-5" />
-                                        Brand Promotion
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/delivery">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/delivery')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="majesticons:truck-line" className="w-5 h-5" />
-                                        Delivery
-                                    </button>
-                                </Link>
+                                {mainLinks.map((link) => (
+                                    <Link key={link.to} to={link.to}>
+                                        <button
+                                            className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${
+                                                isActive(link.active) ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <Icon icon={link.icon} className="w-5 h-5" />
+                                            {link.label}
+                                        </button>
+                                    </Link>
+                                ))}
                             </div>
 
                             <div className="border-t border-gray-200 mt-8 pt-4">
-                                <Link to="/vendor/support">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/support')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="mynaui:support" className="w-5 h-5" />
-                                        Get Support
-                                    </button>
-                                </Link>
-
-                                <Link to="/vendor/settings">
-                                    <button className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${isActive('/settings')
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                        }`}>
-                                        <Icon icon="lsicon:setting-outline" className="w-5 h-5" />
-                                        Setting
-                                    </button>
-                                </Link>
+                                {footerLinks.map((link) => (
+                                    <Link key={link.to} to={link.to}>
+                                        <button
+                                            className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${
+                                                isActive(link.active) ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <Icon icon={link.icon} className="w-5 h-5" />
+                                            {link.label}
+                                        </button>
+                                    </Link>
+                                ))}
                             </div>
                         </nav>
                     </aside>

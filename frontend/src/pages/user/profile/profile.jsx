@@ -1,17 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Form, FormField, Input } from "../../../components/form";
 import Button from "../../../components/button";
+import { useAuth } from "../../../hooks/useAuth.js";
 
 export default function Profile() {
+    const { user } = useAuth();
+    
+    // Debug log to see the user data structure
+    console.log('User data in profile form:', user);
+    
     const [form, setForm] = useState({
-        name: '',
-        school: '',
-        phone: '',
-        email: '',
-        country: '',
-        deliveryAddress: ''
+        name: user?.session?.fullName || user?.user?.username || '',
+        school: user?.user?.school || '',
+        phone: user?.user?.phoneNumber || '',
+        email: user?.session?.email || '',
+        country: 'Nigeria',
+        deliveryAddress: user?.user?.address || ''
     });
 
+    // Update form when user data loads
+    useEffect(() => {
+        if (user) {
+            setForm({
+                name: user?.session?.fullName || user?.user?.username || '',
+                school: user?.user?.school || '',
+                phone: user?.user?.phoneNumber || '',
+                email: user?.session?.email || '',
+                country: 'Nigeria',
+                deliveryAddress: user?.user?.address || ''
+            });
+        }
+    }, [user]);
+
+    // eslint-disable-next-line no-unused-vars
     const [errors, setErrors] = useState({});
 
     const onSubmit = (e) => {

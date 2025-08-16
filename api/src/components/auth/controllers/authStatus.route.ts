@@ -7,10 +7,12 @@ import { Admin } from "../../admin/_model";
 import { AdminValidator } from "../../admin/_setup";
 import { UserValidator } from "../../users/_setup";
 
+// Admin auth status
 const adminAuthStatus = new Elysia()
     .use(isSessionAuth("admin"))
     .get("/status/admin", async ({ set, session }) => {
         try {
+            // session here is the SessionClient document injected by isSessionAuth
             const adminSessionClient = await Admin.findOne({ sessionClientId: session._id })
                 .select("-password");
 
@@ -24,10 +26,12 @@ const adminAuthStatus = new Elysia()
         }
     }, AdminValidator.authStatus)
 
+// User auth status
 const userAuthStatus = new Elysia()
     .use(isSessionAuth("user"))
     .get("/status/user", async ({ set, session }) => {
         try {
+            // session here is the SessionClient document injected by isSessionAuth
             const userSessionClient = await User.findOne({ sessionClientId: session._id })
                 .select("-password");
 

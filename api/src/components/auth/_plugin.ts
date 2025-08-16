@@ -1,6 +1,7 @@
 import Elysia from "elysia";
 import getSessions from "./controllers/getSessions.route";
 import { adminAuthStatus, userAuthStatus } from "./controllers/authStatus.route";
+import vendorAuthStatus from "../vendors/controllers/vendorAuthStatus.route";
 import manageOTP from "./controllers/otp.routes";
 import logout from "./controllers/logout.route";
 
@@ -10,6 +11,7 @@ const authPlugin = new Elysia({
     .use(getSessions)
     .use(adminAuthStatus)
     .use(userAuthStatus)
+    .use(vendorAuthStatus)
     .use(manageOTP)
     .use(logout)
 
