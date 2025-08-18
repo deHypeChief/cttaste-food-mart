@@ -10,10 +10,10 @@ import {
     IconSearch,
     IconSettings,
     IconUsers,
+    IconCode,
 } from "@tabler/icons-react"
 
 // import { NavDocuments } from "@/components/nav-documents"
-import { Code } from "lucide-react"
 import { NavMain } from "@/components/blocks/nav-main"
 import { NavSecondary } from "@/components/blocks/nav-secondary"
 import { NavUser } from "@/components/blocks/nav-user"
@@ -39,6 +39,12 @@ const data = {
             title: "Users",
             url: "/users",
             icon: IconUsers,
+        }
+        ,
+        {
+            title: "Vendors",
+            url: "/vendors",
+            icon: IconDatabase,
         }
     ],
     navClouds: [
@@ -98,7 +104,7 @@ const data = {
         {
             title: "API Documentation",
             url: pannelData.apiUrl,
-            icon: Code,
+            icon: IconCode,
         },
         {
             title: "Search",

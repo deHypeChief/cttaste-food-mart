@@ -77,8 +77,12 @@ export default function Dashboard() {
     }, []);
 
     const vendorUrl = useMemo(() => {
-        const slug = vendor?.vendor?.restaurantName?.toLowerCase().replace(/\s+/g, '') || 'vendor';
-        return `https://cttaste.com/${slug}`;
+        const name = vendor?.vendor?.restaurantName || 'vendor';
+        const slug = String(name).toLowerCase().replace(/\s+/g, '');
+        const id = vendor?.vendor?._id;
+        const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://cttaste.com';
+        const path = `/vendor/${slug}`;
+        return id ? `${origin}${path}?id=${id}` : `${origin}${path}`;
     }, [vendor]);
 
     const copyVendorUrl = async () => {
@@ -133,9 +137,9 @@ export default function Dashboard() {
                         Welcome {vendor?.vendor?.restaurantName || vendor?.session?.fullName || 'Vendor'}
                     </h1>
                     <div className="flex items-center justify-between gap-3 bg-white bg-opacity-90 rounded-lg px-4 py-3 max-w-md">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                             <Icon icon="majesticons:link" className="w-5 h-5 text-gray-500" />
-                            <span className="text-gray-700 text-sm">
+                            <span className="text-gray-700 text-sm truncate" title={vendorUrl}>
                                 {vendorUrl}
                             </span>
                         </div>

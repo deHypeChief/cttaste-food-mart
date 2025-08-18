@@ -6,6 +6,7 @@ import updateVendorProfile from "./controllers/updateVendorProfile.route";
 import workingHoursRoute from "./controllers/workingHours.route";
 import vendorPasswordChange from "./controllers/passwordChange.route";
 import listVendors from "./controllers/listVendors.route";
+import commentsRoute from "./controllers/comments.route";
 
 const vendorPlugin = new Elysia({
     prefix: "/vendors"
@@ -17,5 +18,6 @@ const vendorPlugin = new Elysia({
     .use(vendorPasswordChange)
     .use(workingHoursRoute)
     .use(listVendors)
+    .use(commentsRoute)
 
 export default vendorPlugin

@@ -16,6 +16,7 @@ import { Route as IndexImport } from './routes/index'
 import { Route as AuthResetPasswordImport } from './routes/auth/reset-password'
 import { Route as AuthRegisterAdminImport } from './routes/auth/registerAdmin'
 import { Route as AuthForgotPasswordImport } from './routes/auth/forgot-password'
+import { Route as AdminVendorsImport } from './routes/_admin/vendors'
 import { Route as AdminUsersImport } from './routes/_admin/users'
 import { Route as AdminSettingsImport } from './routes/_admin/settings'
 import { Route as AdminOverviewImport } from './routes/_admin/overview'
@@ -54,6 +55,12 @@ const AuthForgotPasswordRoute = AuthForgotPasswordImport.update({
   id: '/auth/forgot-password',
   path: '/auth/forgot-password',
   getParentRoute: () => rootRoute,
+} as any)
+
+const AdminVendorsRoute = AdminVendorsImport.update({
+  id: '/vendors',
+  path: '/vendors',
+  getParentRoute: () => AdminRoute,
 } as any)
 
 const AdminUsersRoute = AdminUsersImport.update({
@@ -145,6 +152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersImport
       parentRoute: typeof AdminImport
     }
+    '/_admin/vendors': {
+      id: '/_admin/vendors'
+      path: '/vendors'
+      fullPath: '/vendors'
+      preLoaderRoute: typeof AdminVendorsImport
+      parentRoute: typeof AdminImport
+    }
     '/auth/forgot-password': {
       id: '/auth/forgot-password'
       path: '/auth/forgot-password'
@@ -228,6 +242,7 @@ interface AdminRouteChildren {
   AdminOverviewRoute: typeof AdminOverviewRoute
   AdminSettingsRoute: typeof AdminSettingsRouteWithChildren
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminVendorsRoute: typeof AdminVendorsRoute
   AdminAccountIndexRoute: typeof AdminAccountIndexRoute
 }
 
@@ -235,6 +250,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminOverviewRoute: AdminOverviewRoute,
   AdminSettingsRoute: AdminSettingsRouteWithChildren,
   AdminUsersRoute: AdminUsersRoute,
+  AdminVendorsRoute: AdminVendorsRoute,
   AdminAccountIndexRoute: AdminAccountIndexRoute,
 }
 
@@ -246,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof AdminOverviewRoute
   '/settings': typeof AdminSettingsRouteWithChildren
   '/users': typeof AdminUsersRoute
+  '/vendors': typeof AdminVendorsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/registerAdmin': typeof AuthRegisterAdminRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
@@ -261,6 +278,7 @@ export interface FileRoutesByTo {
   '': typeof AdminRouteWithChildren
   '/overview': typeof AdminOverviewRoute
   '/users': typeof AdminUsersRoute
+  '/vendors': typeof AdminVendorsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/registerAdmin': typeof AuthRegisterAdminRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
@@ -278,6 +296,7 @@ export interface FileRoutesById {
   '/_admin/overview': typeof AdminOverviewRoute
   '/_admin/settings': typeof AdminSettingsRouteWithChildren
   '/_admin/users': typeof AdminUsersRoute
+  '/_admin/vendors': typeof AdminVendorsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/registerAdmin': typeof AuthRegisterAdminRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
@@ -296,6 +315,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/users'
+    | '/vendors'
     | '/auth/forgot-password'
     | '/auth/registerAdmin'
     | '/auth/reset-password'
@@ -310,6 +330,7 @@ export interface FileRouteTypes {
     | ''
     | '/overview'
     | '/users'
+    | '/vendors'
     | '/auth/forgot-password'
     | '/auth/registerAdmin'
     | '/auth/reset-password'
@@ -325,6 +346,7 @@ export interface FileRouteTypes {
     | '/_admin/overview'
     | '/_admin/settings'
     | '/_admin/users'
+    | '/_admin/vendors'
     | '/auth/forgot-password'
     | '/auth/registerAdmin'
     | '/auth/reset-password'
@@ -378,6 +400,7 @@ export const routeTree = rootRoute
         "/_admin/overview",
         "/_admin/settings",
         "/_admin/users",
+        "/_admin/vendors",
         "/_admin/account/"
       ]
     },
@@ -397,6 +420,10 @@ export const routeTree = rootRoute
     },
     "/_admin/users": {
       "filePath": "_admin/users.tsx",
+      "parent": "/_admin"
+    },
+    "/_admin/vendors": {
+      "filePath": "_admin/vendors.tsx",
       "parent": "/_admin"
     },
     "/auth/forgot-password": {

@@ -13,6 +13,9 @@ export const vendorService = {
   },
   getPublic: async (id) => apiClient.get(`/vendors/${id}`),
   getPublicMenu: async (id) => apiClient.get(`/vendors/${id}/menu`),
+  getComments: async (id) => apiClient.get(`/vendors/${id}/comments`),
+  addComment: async (id, { userName, rating, comment }) =>
+    apiClient.post(`/vendors/${id}/comments`, { userName, rating, comment }),
   getWorkingHours: async () => {
     return apiClient.get(API_ENDPOINTS.VENDOR_WORKING_HOURS);
   },

@@ -6,22 +6,59 @@ import { Vendor } from '../../vendors/_model';
 
 const vendorsModeration = new Elysia()
   .use(isSessionAuth('admin'))
-  // List vendors for moderation
+  // List vendors for moderation with search + pagination
   .get('/vendors', async ({ set, query }) => {
     try {
-      const { status } = query as { status?: 'pending' | 'approved' | 'all' };
+      const { status, search, page = '1', limit = '20' } = query as {
+        status?: 'pending' | 'approved' | 'all';
+        search?: string;
+        page?: string;
+        limit?: string;
+      };
+
       const filter: any = {};
       if (status === 'pending') filter.isApproved = false;
       else if (status === 'approved') filter.isApproved = true;
-      // status 'all' or undefined => no isApproved filter
 
-      const items = await Vendor.find(filter).sort({ createdAt: -1 });
-      return SuccessHandler(set, 'Vendors fetched', { items }, true);
+      if (search && search.trim()) {
+        const rx = new RegExp(search.trim(), 'i');
+        filter.$or = [
+          { restaurantName: { $regex: rx } },
+          { ownerName: { $regex: rx } },
+          { location: { $regex: rx } },
+        ];
+      }
+
+      const pageNum = Math.max(parseInt(page) || 1, 1);
+      const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+
+      const [items, total] = await Promise.all([
+        Vendor.find(filter).sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum),
+        Vendor.countDocuments(filter),
+      ]);
+
+      return SuccessHandler(
+        set,
+        'Vendors fetched',
+        {
+          items,
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum) || 1,
+        },
+        true
+      );
     } catch (err) {
       throw ErrorHandler.ServerError(set, 'Error fetching vendors', err);
     }
   }, {
-    query: t.Object({ status: t.Optional(t.Union([t.Literal('pending'), t.Literal('approved'), t.Literal('all')])) })
+    query: t.Object({
+      status: t.Optional(t.Union([t.Literal('pending'), t.Literal('approved'), t.Literal('all')])),
+      search: t.Optional(t.String()),
+      page: t.Optional(t.String()),
+      limit: t.Optional(t.String()),
+    })
   })
   // Approve/Unapprove a vendor
   .patch('/vendors/:id/approve', async ({ set, params, body }) => {

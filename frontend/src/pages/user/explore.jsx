@@ -2,7 +2,8 @@ import { Icon } from "@iconify/react";
 import Button from "../../components/button";
 import { H1 } from "../../components/typography";
 import { ExploreCard } from "../../components/vendor";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { vendorService } from "../../api/vendor";
 import { favoritesService } from "../../api/favorites";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -30,6 +31,8 @@ const exploreData = {
 }
 
 export default function Explore() {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { userType } = useAuth();
     const CAMPUSES = [
         { value: "All", label: "All" },
@@ -67,13 +70,15 @@ export default function Explore() {
                 const params = { limit: 24 };
                 if (activeType !== 'All') params.vendorType = activeType;
                 if (location !== 'All') params.location = location;
+                const search = searchParams.get('search');
+                if (search) params.search = search;
                 const res = await vendorService.list(params);
                 setVendors(res?.data?.items || []);
             } catch (e) {
                 setError(e.message || 'Failed to load vendors');
             } finally { setLoading(false); }
         })();
-    }, [activeType, location]);
+    }, [activeType, location, searchParams]);
 
     // Load favorites for signed-in customers so hearts are persistent
     useEffect(() => {
@@ -89,24 +94,65 @@ export default function Explore() {
         })();
     }, [userType]);
 
+    // Featured vendor carousel (max 4)
+    const featured = useMemo(() => (vendors || []).slice(0, 4), [vendors]);
+    const [current, setCurrent] = useState(0);
+
+    useEffect(() => {
+        if (!featured.length) return;
+        // keep index within range when vendors update
+        setCurrent((c) => (c >= featured.length ? 0 : c));
+    }, [featured.length]);
+
+    useEffect(() => {
+        if (!featured.length) return;
+        const id = setInterval(() => {
+            setCurrent((c) => (c + 1) % featured.length);
+        }, 5000);
+        return () => clearInterval(id);
+    }, [featured.length]);
+
+    const activeVendor = featured[current];
+    const activeTitle = activeVendor?.restaurantName || "Discover great vendors near you";
+    const heroBgStyle = activeVendor?.banner
+        ? { backgroundImage: `url(${activeVendor.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : {};
+
+    const goToVendor = (v) => {
+        if (!v) return;
+        const slug = String(v.restaurantName || 'vendor').toLowerCase().replace(/\s+/g, '');
+        // Pass id for reliable lookup
+        navigate(`/vendor/${slug}?id=${v._id}`);
+    };
+
     return (
         <div className="mx-20 ml-24">
-            <div className=" h-[55vh] bg-gray-200 mt-10 rounded-lg">
-                <div className="" />
+            <div className=" h-[55vh] bg-gray-200 mt-10 rounded-lg relative overflow-hidden" style={heroBgStyle}>
+                {/* uniform dark overlay for readability */}
+                <div className="absolute inset-0 bg-black/20" />
 
-                <div className="p-10 flex h-full flex-col justify-end">
+                <div className="p-10 flex h-full flex-col justify-end relative z-[1]">
                     <div className="mb-5 flex gap-2">
-                        <div className="h-[5px] w-12 bg-white rounded-full" />
-                        <div className="h-[5px] w-12 bg-gray-400 rounded-full" />
-                        <div className="h-[5px] w-12 bg-gray-400 rounded-full" />
-                        <div className="h-[5px] w-12 bg-gray-400 rounded-full" />
+                        {featured.map((_, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setCurrent(idx)}
+                                className={`h-[5px] w-12 rounded-full transition-colors ${idx === current ? 'bg-white' : 'bg-gray-400/80'}`}
+                                aria-label={`Go to slide ${idx + 1}`}
+                            />
+                        ))}
+                        {!featured.length && (
+                            <div className="h-[5px] w-12 bg-white rounded-full" />
+                        )}
                     </div>
 
-                    <div className="w-[500px] space-y-10">
-                        <H1 className=''>
-                            Get Discounts When you buy from Chilly Bothey
+                    <div className="w-[500px] max-w-full space-y-6 sm:space-y-10">
+                        <H1 className='text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]'>
+                            {activeVendor ? `Get discounts when you buy from ${activeTitle}` : 'Find meals you love from top vendors'}
                         </H1>
-                        <Button className="px-6 py-3">Explore Menu</Button>
+                        <Button className="px-6 py-3" onClick={() => goToVendor(activeVendor)} disabled={!activeVendor}>
+                            Explore Menu
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -137,9 +183,9 @@ export default function Explore() {
                             </Button>
                         ))}
                     </div>
-                    <Button icon="mynaui:filter" variant="outlineFade" className="px-0 py-3">
+                    {/* <Button icon="mynaui:filter" variant="outlineFade" className="px-0 py-3">
                         Fillter
-                    </Button>
+                    </Button> */}
                 </div>
 
                 <div className="my-10 grid grid-cols-4 gap-5">

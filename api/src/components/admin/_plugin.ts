@@ -4,6 +4,7 @@ import signAdmin from "./controllers/signAdmin.route";
 import passwordReset from "./controllers/passwordReset.route";
 import passwordChange from "./controllers/passwordChange.route";
 import vendorsModeration from "./controllers/vendorsModeration.route";
+import vendorsAnalytics from "./controllers/vendorsAnalytics.route";
 
 const adminPlugin = new Elysia({
     prefix: "/admins"
@@ -13,5 +14,6 @@ const adminPlugin = new Elysia({
     .use(passwordReset)
     .use(passwordChange)
     .use(vendorsModeration)
+    .use(vendorsAnalytics)
 
 export default adminPlugin;

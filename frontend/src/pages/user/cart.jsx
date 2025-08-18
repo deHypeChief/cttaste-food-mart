@@ -1,11 +1,33 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Button from "../../components/button";
 import { H1 } from "../../components/typography";
 import { ExploreCard } from "../../components/vendor";
 import { useCart } from "../../hooks/useCart";
+import { vendorService } from "../../api/vendor";
 
 export default function Cart() {
     const { items, count, total, updateQty, clear } = useCart();
+    const isEmpty = !items || items.length === 0;
+
+    // Suggested vendors (max 8)
+    const [vendors, setVendors] = useState([]);
+    const [suggestLoading, setSuggestLoading] = useState(false);
+    const [suggestError, setSuggestError] = useState("");
+
+    useEffect(() => {
+        (async () => {
+            try {
+                setSuggestLoading(true); setSuggestError("");
+                const res = await vendorService.list({ limit: 8 });
+                setVendors(res?.data?.items || []);
+            } catch (e) {
+                setSuggestError(e.message || 'Failed to load vendors');
+            } finally {
+                setSuggestLoading(false);
+            }
+        })();
+    }, []);
     return (
         <div className="mx-20 ml-24 ">
             <div className="mt-10 flex justify-between">
@@ -18,7 +40,7 @@ export default function Cart() {
             <div className="mt-10 grid grid-cols-[1fr_0.5fr] gap-10">
                 <div>
                     <div className="space-y-5">
-                        {(!items || items.length === 0) && (
+                        {isEmpty && (
                             <div className="text-center opacity-60">Your cart is empty</div>
                         )}
                         {items?.map((it) => (
@@ -75,11 +97,17 @@ export default function Cart() {
                             <h3 className="font-semibold text-2xl">Total</h3>
                             <h3 className="font-semibold text-2xl">N {Number(total || 0).toLocaleString()}</h3>
                         </div>
-                        <Link to="/checkout" className="w-full">
-                            <Button className="w-full px-6 py-3">
+                        {isEmpty ? (
+                            <Button className="w-full px-6 py-3 opacity-50 cursor-not-allowed" disabled aria-disabled>
                                 Proceed to Checkout
                             </Button>
-                        </Link>
+                        ) : (
+                            <Link to="/checkout" className="w-full">
+                                <Button className="w-full px-6 py-3">
+                                    Proceed to Checkout
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>
@@ -89,13 +117,28 @@ export default function Cart() {
                     <p className="font-medium text-2xl">More Vendors</p>
                 </div>
                 <div className="my-10 grid grid-cols-4 gap-5">
-                    <ExploreCard vendorName="dehypekitchen" />
-                    <ExploreCard />
-                    <ExploreCard />
-                    <ExploreCard />
-                    <ExploreCard />
-                    <ExploreCard />
-                    <ExploreCard />
+                    {suggestLoading && (
+                        <div className="col-span-4 text-center opacity-60">Loading vendors…</div>
+                    )}
+                    {suggestError && (
+                        <div className="col-span-4 text-center text-red-600">{suggestError}</div>
+                    )}
+                    {!suggestLoading && !suggestError && vendors.length === 0 && (
+                        <div className="col-span-4 text-center opacity-60">No vendors available</div>
+                    )}
+                    {vendors.slice(0, 8).map((v) => (
+                        <ExploreCard
+                            key={v._id}
+                            vendorName={v.restaurantName?.toLowerCase().replace(/\s+/g, '')}
+                            name={v.restaurantName}
+                            vendorType={v.vendorType}
+                            description={v.description}
+                            avatar={v.avatar}
+                            banner={v.banner}
+                            location={v.location}
+                            id={v._id}
+                        />
+                    ))}
                 </div>
             </div>
         </div>

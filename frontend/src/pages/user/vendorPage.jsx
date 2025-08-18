@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import Button from "../../components/button";
 import { H1 } from "../../components/typography";
 import { MenueCard } from "../../components/vendor";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "../../components/dialog";
 import { useParams, useSearchParams } from "react-router-dom";
 import { vendorService } from "../../api/vendor";
 import { useCart } from "../../hooks/useCart";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function VendorInfo() {
     const { vendorName } = useParams();
@@ -24,82 +25,13 @@ export default function VendorInfo() {
         rating: 5,
         comment: ''
     });
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
 
-    // Sample comments data
-    const [comments, setComments] = useState([
-        {
-            id: 1,
-            name: "John Doe",
-            rating: 5,
-            comment: "Amazing food quality! The fried rice was perfectly seasoned and the service was excellent.",
-            timeAgo: "2 days ago",
-            avatar: "J",
-            bgColor: "bg-primary"
-        },
-        {
-            id: 2,
-            name: "Mary Johnson",
-            rating: 4,
-            comment: "Great atmosphere and delicious meals. Will definitely come back!",
-            timeAgo: "1 week ago",
-            avatar: "M",
-            bgColor: "bg-green-500"
-        },
-        {
-            id: 3,
-            name: "Alex Smith",
-            rating: 5,
-            comment: "Outstanding service and food quality. The best restaurant in the area!",
-            timeAgo: "1 week ago",
-            avatar: "A",
-            bgColor: "bg-blue-500"
-        },
-        {
-            id: 4,
-            name: "Sarah Wilson",
-            rating: 5,
-            comment: "Incredible experience! The staff was friendly and the food was absolutely delicious. Highly recommend the special menu.",
-            timeAgo: "2 weeks ago",
-            avatar: "S",
-            bgColor: "bg-purple-500"
-        },
-        {
-            id: 5,
-            name: "David Brown",
-            rating: 4,
-            comment: "Good food and reasonable prices. The ambiance is perfect for family dining.",
-            timeAgo: "3 weeks ago",
-            avatar: "D",
-            bgColor: "bg-orange-500"
-        },
-        {
-            id: 6,
-            name: "Lisa Chen",
-            rating: 5,
-            comment: "Best restaurant in town! Everything from appetizers to desserts was perfect. Will be coming back soon.",
-            timeAgo: "1 month ago",
-            avatar: "L",
-            bgColor: "bg-pink-500"
-        },
-        {
-            id: 7,
-            name: "Mike Rodriguez",
-            rating: 4,
-            comment: "Great service and fresh ingredients. The presentation was beautiful and taste was amazing.",
-            timeAgo: "1 month ago",
-            avatar: "M",
-            bgColor: "bg-indigo-500"
-        },
-        {
-            id: 8,
-            name: "Emma Thompson",
-            rating: 5,
-            comment: "Exceptional dining experience! The chef really knows how to bring out the best flavors.",
-            timeAgo: "2 months ago",
-            avatar: "E",
-            bgColor: "bg-red-500"
-        }
-    ]);
+    // Comments from API
+    const [comments, setComments] = useState([]);
+    const [commentsLoading, setCommentsLoading] = useState(false);
+    const [commentsError, setCommentsError] = useState("");
+    const { isAuthenticated } = useAuth();
 
     const updateQuantity = (itemIndex, newQty) => {
         setQuantities(prev => ({
@@ -114,25 +46,39 @@ export default function VendorInfo() {
         clearCartDb?.();
     };
 
-    const handleReviewSubmit = () => {
+    const handleReviewSubmit = async () => {
+        if (!vendor?._id) return;
         if (newReview.name.trim() && newReview.comment.trim()) {
-            const review = {
-                id: comments.length + 1,
-                name: newReview.name,
-                rating: newReview.rating,
-                comment: newReview.comment,
-                timeAgo: "Just now",
-                avatar: newReview.name.charAt(0).toUpperCase(),
-                bgColor: "bg-gray-500"
-            };
-            
-            setComments([review, ...comments]);
-            setNewReview({ name: '', rating: 5, comment: '' });
+            try {
+                // optimistic update
+                const optimistic = {
+                    userName: newReview.name,
+                    rating: newReview.rating,
+                    comment: newReview.comment,
+                    createdAt: new Date().toISOString(),
+                };
+                setComments(prev => [optimistic, ...prev]);
+                setNewReview({ name: '', rating: 5, comment: '' });
+                // close the dialog after submit
+                setIsReviewOpen(false);
+                await vendorService.addComment(vendor._id, {
+                    userName: optimistic.userName,
+                    rating: optimistic.rating,
+                    comment: optimistic.comment,
+                });
+                // refresh from server to ensure consistency
+                await fetchComments(vendor._id);
+            } catch (e) {
+                setCommentsError(e.message || 'Failed to add comment');
+            }
         }
     };
 
     // Derive a safe title and slug-to-id workaround if backend adds slug-based lookup later
     const title = vendor?.restaurantName || 'Vendor';
+    const averageRating = comments.length
+        ? Math.round((comments.reduce((s, c) => s + (c.rating || 0), 0) / comments.length) * 10) / 10
+        : null;
 
     useEffect(() => {
         // Prefer fetching by explicit id if provided in query (?vid=...)
@@ -147,6 +93,7 @@ export default function VendorInfo() {
                     setVendor(v);
                     const menuRes = await vendorService.getPublicMenu(v._id);
                     setMenu(menuRes?.data?.items || []);
+                    fetchComments(v._id);
                     return;
                 }
                 // Fallback: find the vendor by name via list API (search)
@@ -156,11 +103,23 @@ export default function VendorInfo() {
                 setVendor(found);
                 const menuRes = await vendorService.getPublicMenu(found._id);
                 setMenu(menuRes?.data?.items || []);
+                fetchComments(found._id);
             } catch (e) {
                 setError(e.message || 'Failed to load vendor');
             } finally { setLoading(false); }
         })();
     }, [vendorName, searchParams]);
+
+    const fetchComments = async (id) => {
+        try {
+            setCommentsLoading(true); setCommentsError("");
+            const res = await vendorService.getComments(id);
+            const items = res?.data?.items || [];
+            setComments(items);
+        } catch (e) {
+            setCommentsError(e.message || 'Failed to load comments');
+        } finally { setCommentsLoading(false); }
+    };
 
     // Keep menu quantities in sync with persisted cart on load/refresh
     useEffect(() => {
@@ -194,7 +153,7 @@ export default function VendorInfo() {
                                         {title}
                                     </H1>
                                     <div className="bg-primary flex items-center justify-center text-center text-white h-[30px] w-[30px] rounded-full text-sm font-medium">
-                                        <p>5</p>
+                                        <p>{averageRating ?? '—'}</p>
                                     </div>
                                 </div>
                                 <p>{vendor?.description || [vendor?.location, vendor?.vendorType].filter(Boolean).join(' • ')}</p>
@@ -209,30 +168,32 @@ export default function VendorInfo() {
                                 </DialogTrigger>
                                 <DialogContent className="max-w-2xl max-h-[80vh]">
                                     <DialogHeader>
-                                        <DialogTitle>Customer Comments</DialogTitle>
+                                        <DialogTitle>Comments for {String(title).toLowerCase()}</DialogTitle>
                                         <DialogDescription>
-                                            See what customers are saying about DALISH Restaurant
+                                            See what customers are saying about {String(title).toLowerCase()}
                                         </DialogDescription>
                                     </DialogHeader>
-                                    
                                     <div className="max-h-[60vh] overflow-y-auto space-y-4 mt-6 pr-2">
-                                        {comments.map((comment) => (
-                                            <div key={comment.id} className="border-b pb-4 last:border-b-0">
+                                        {commentsError && <div className="text-red-600 text-sm">{commentsError}</div>}
+                                        {commentsLoading && <div className="opacity-60 text-sm">Loading comments…</div>}
+                                        {!commentsLoading && comments.length === 0 && <div className="opacity-60 text-sm">No comments yet</div>}
+                                        {comments.map((comment, idx) => (
+                                            <div key={idx} className="border-b pb-4 last:border-b-0">
                                                 <div className="flex items-start gap-3">
-                                                    <div className={`w-8 h-8 ${comment.bgColor} rounded-full flex items-center justify-center flex-shrink-0`}>
-                                                        <span className="text-white text-sm font-medium">{comment.avatar}</span>
+                                                    <div className={`w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0`}>
+                                                        <span className="text-white text-sm font-medium">{(comment.userName || '').charAt(0).toUpperCase()}</span>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <h4 className="font-medium text-sm">{comment.name}</h4>
+                                                            <h4 className="font-medium text-sm">{comment.userName}</h4>
                                                             <div className="flex text-yellow-400">
-                                                                {"★".repeat(comment.rating)}{"☆".repeat(5 - comment.rating)}
+                                                                {"★".repeat(comment.rating || 0)}{"☆".repeat(5 - (comment.rating || 0))}
                                                             </div>
                                                         </div>
                                                         <p className="text-sm text-gray-600">
                                                             {comment.comment}
                                                         </p>
-                                                        <span className="text-xs text-gray-400">{comment.timeAgo}</span>
+                                                        <span className="text-xs text-gray-400">{new Date(comment.createdAt || Date.now()).toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -252,80 +213,77 @@ export default function VendorInfo() {
                     </Button>
 
                     <div className="flex items-center gap-5">
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button icon="fluent:chat-16-regular" variant="outlineFade" className="px-0 py-3">
-                                    Leave Comment
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-lg">
-                                <DialogHeader>
-                                    <DialogTitle>Leave a Review</DialogTitle>
-                                    <DialogDescription>
-                                        Share your experience with DALISH Restaurant
-                                    </DialogDescription>
-                                </DialogHeader>
-                                
-                                <div className="space-y-4 mt-6">
-                                    {/* Name Input */}
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Your Name</label>
-                                        <input
-                                            type="text"
-                                            value={newReview.name}
-                                            onChange={(e) => setNewReview(prev => ({ ...prev, name: e.target.value }))}
-                                            placeholder="Enter your name"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                    </div>
+                        {isAuthenticated && (
+                            <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
+                                <DialogTrigger asChild>
+                                    <Button icon="fluent:chat-16-regular" variant="outlineFade" className="px-0 py-3">
+                                        Leave Comment
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-lg">
+                                    <DialogHeader>
+                                        <DialogTitle>Leave a Review</DialogTitle>
+                                        <DialogDescription>
+                                            Share your experience with {title.toLowerCase()}
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    
+                                    <div className="space-y-4 mt-6">
+                                        {/* Name Input */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-2">Your Name</label>
+                                            <input
+                                                type="text"
+                                                value={newReview.name}
+                                                onChange={(e) => setNewReview(prev => ({ ...prev, name: e.target.value }))}
+                                                placeholder="Enter your name"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                            />
+                                        </div>
 
-                                    {/* Rating Input */}
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Rating</label>
-                                        <div className="flex gap-1">
-                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                <button
-                                                    key={star}
-                                                    type="button"
-                                                    onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
-                                                    className={`text-2xl ${star <= newReview.rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
-                                                >
-                                                    ★
-                                                </button>
-                                            ))}
+                                        {/* Rating Input */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-2">Rating</label>
+                                            <div className="flex gap-1">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <button
+                                                        key={star}
+                                                        type="button"
+                                                        onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
+                                                        className={`text-2xl ${star <= newReview.rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
+                                                    >
+                                                        ★
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Comment Input */}
+                                        <div>
+                                            <label className="block text-sm font-medium mb-2">Your Review</label>
+                                            <textarea
+                                                value={newReview.comment}
+                                                onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
+                                                placeholder="Tell us about your experience..."
+                                                rows={4}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                                            />
+                                        </div>
+
+                                        {/* Submit Button */}
+                                        <div className="flex gap-3 pt-4">
+                                            <Button 
+                                                variant="primary" 
+                                                className="flex-1"
+                                                onClick={handleReviewSubmit}
+                                            >
+                                                Submit Review
+                                            </Button>
                                         </div>
                                     </div>
-
-                                    {/* Comment Input */}
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Your Review</label>
-                                        <textarea
-                                            value={newReview.comment}
-                                            onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
-                                            placeholder="Tell us about your experience..."
-                                            rows={4}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                                        />
-                                    </div>
-
-                                    {/* Submit Button */}
-                                    <div className="flex gap-3 pt-4">
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" className="flex-1">
-                                                Cancel
-                                            </Button>
-                                        </DialogTrigger>
-                                        <Button 
-                                            variant="primary" 
-                                            className="flex-1"
-                                            onClick={handleReviewSubmit}
-                                        >
-                                            Submit Review
-                                        </Button>
-                                    </div>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+                                </DialogContent>
+                            </Dialog>
+                        )}
                         <Button icon="gg:trash" variant="outlineFade" className="px-0 py-3" onClick={clearCart}>
                             Clear Cart
                         </Button>

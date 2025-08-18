@@ -43,6 +43,14 @@ export interface IVendor {
     // Status
     isApproved?: boolean;
     isActive?: boolean;
+
+    // Reviews / Comments
+    reviews?: Array<{
+        userName: string;
+        rating: number; // 1-5
+        comment: string;
+        createdAt: Date;
+    }>;
 }
 
 const vendorSchema = new mongoose.Schema<IVendor>({
@@ -182,6 +190,17 @@ const vendorSchema = new mongoose.Schema<IVendor>({
     isActive: {
         type: Boolean,
         default: true,
+    },
+
+    // Reviews / Comments
+    reviews: {
+        type: [new mongoose.Schema({
+            userName: { type: String, required: true },
+            rating: { type: Number, min: 1, max: 5, required: true },
+            comment: { type: String, required: true },
+            createdAt: { type: Date, default: Date.now },
+        }, { _id: false })],
+        default: [],
     },
 }, { timestamps: true });
 
