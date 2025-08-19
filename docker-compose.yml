@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: unless-stopped
+    networks:
+      - web
+    expose:
+      - "3000"
+
+  admin:
+    build: ./admin
+    container_name: admin
+    restart: unless-stopped
+    networks:
+      - web
+    expose:
+      - "3001"
+
+  backend:
+    build: ./api
+    container_name: api
+    restart: unless-stopped
+    networks:
+      - web
+    expose:
+      - "8000"
+
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
+    restart: unless-stopped
+    networks:
+      - web
+    volumes:
+      - ./mongodb/data:/data/db
+    ports:
+      - "27017:27017" # only if you want external access
+
+  proxy:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"   # dashboard
+      - "443:443"
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    networks:
+      - web
+
+networks:
+  web:
+    external: false
