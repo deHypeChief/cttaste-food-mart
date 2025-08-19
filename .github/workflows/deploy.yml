@@ -19,6 +19,6 @@ jobs:
           user: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd ~/apps/my-app
+            cd ~/apps
             git pull origin main
             docker-compose up -d --build
