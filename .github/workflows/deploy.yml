@@ -16,9 +16,11 @@ jobs:
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
-          user: ${{ secrets.SSH_USER }}
+          user: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ~/apps
+            git reset --hard HEAD              
             git pull origin main
+            docker-compose down
             docker-compose up -d --build
