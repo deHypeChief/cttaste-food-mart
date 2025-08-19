@@ -24,7 +24,7 @@ WORKDIR /app
 # Copy only what we need: built code + static + package files + lockfile
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/bun.lockb ./bun.lockb
+COPY --from=builder /app/bun.lock ./bun.lock
 COPY --from=builder /app/static ./static
 
 # Install production dependencies only
