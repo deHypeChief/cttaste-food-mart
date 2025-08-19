@@ -1,17 +1,37 @@
-FROM oven/bun
+# ---- Build Stage ----
+FROM oven/bun:1 as builder
 
 WORKDIR /app
 
-COPY package.json .
-COPY bun.lock .
+# Copy package files first
+COPY package.json bun.lockb* ./
 
-RUN bun install --production
+# Install deps (both dev + prod so build works)
+RUN bun install --frozen-lockfile
 
-COPY src src
-COPY tsconfig.json .
-# COPY public public
+# Copy source
+COPY . .
 
-ENV NODE_ENV production
-CMD ["bun", "src/index.ts"]
+# Build to ./build
+RUN bun run build
 
-EXPOSE 8000
+
+# ---- Runtime Stage ----
+FROM oven/bun:1
+
+WORKDIR /app
+
+# Copy only what we need: built code + static + package files + lockfile
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/bun.lockb ./bun.lockb
+COPY --from=builder /app/static ./static
+
+# Install production dependencies only
+RUN bun install --frozen-lockfile --production
+
+# Expose app port
+EXPOSE 3000
+
+# Run server
+CMD ["bun", "run", "start"]

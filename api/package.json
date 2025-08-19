@@ -8,7 +8,7 @@
     "build": "bun build ./src/index.ts --outdir ./build --target bun",
     "dev": "bun run --watch src/index.ts",
     "email-dev": "email dev --dir ./src/emails --port 8001",
-    "docker-build": "docker build -t lodgify-api .",
+    "docker-build": "docker build -t nownoow-api .",
     "scrape:test": "bun test test/instagram.test.ts --timeout=35000"
   },
   "dependencies": {
