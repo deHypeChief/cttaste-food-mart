@@ -55,7 +55,7 @@ export default function Button({
         >
             <div className="flex items-center gap-2">
                 {icon && iconPosition === "left" && (
-                    <Icon icon={icon} className="size-5" />
+                    <Icon icon={icon} className="size-4 md:size-5" />
                 )}
                 {loading && (
                     <Icon
@@ -67,7 +67,7 @@ export default function Button({
                     <span className={isIconOnly ? "sr-only" : ""}>{children}</span>
                 )}
                 {icon && iconPosition === "right" && (
-                    <Icon icon={icon} className="size-5" />
+                    <Icon icon={icon} className="size-4 md:size-5" />
                 )}
             </div>
         </button>

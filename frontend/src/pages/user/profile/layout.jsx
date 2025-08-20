@@ -88,8 +88,8 @@ export default function UserProfileLayout() {
             <main className="min-h-screen bg-alt pt-20 pb-20">
 
 
-                <div className="grid grid-cols-[1fr_2.5fr] gap-10 mx-28 ml-24 mt-20">
-                    <div className="bg-white rounded-lg p-5 space-y-5 h-fit sticky top-24">
+                <div className="md:grid grid-cols-[1fr_2.5fr] gap-10 md:mx-28 md:ml-24 md:mt-20">
+                    <div className="bg-white rounded-lg p-5 space-y-5 h-fit sticky md:top-24">
                         <div className="flex items-center gap-5">
                             <div className="h-[65px] w-[65px] bg-gray-500 rounded-full flex items-center justify-center">
                                 {user?.session?.profile && user.session.profile !== "" ? (

@@ -47,14 +47,14 @@ export default function Favorite() {
                         const v = it.vendorId || {};
                         const id = v._id || it.vendorId;
                         return (
-                            <div key={id} className="p-4 py-0 rounded-xl flex items-center justify-between">
-                                <Link to={`/vendor/${(v.restaurantName||'').toLowerCase().replace(/\s+/g, '')}?id=${encodeURIComponent(id)}`} className="flex gap-5 items-center">
-                                    <div className="h-[100px] w-[100px] rounded-xl bg-gray-200 overflow-hidden">
+                            <div key={id} className="p-4 py-0 rounded-xl flex md:items-center justify-between">
+                                <Link to={`/vendor/${(v.restaurantName||'').toLowerCase().replace(/\s+/g, '')}?id=${encodeURIComponent(id)}`} className="md:flex gap-5 items-center">
+                                    <div className="h-[60px] md:h-[100px] w-[60px] md:w-[100px] rounded-xl bg-gray-200 overflow-hidden">
                                         {v.avatar && <img src={v.avatar} alt={v.restaurantName} className="w-full h-full object-cover" />}
                                     </div>
                                     <div className=" py-2">
-                                        <h2 className="text-xl font-medium mt-1">{v.restaurantName || 'Vendor'}</h2>
-                                        <p className="font-medium opacity-60">{v.description || v.vendorType || ''}</p>
+                                        <h2 className="text-lg md:text-xl font-medium mt-1">{v.restaurantName || 'Vendor'}</h2>
+                                        <p className="text-sm md:text-lg font-medium opacity-60">{v.description || v.vendorType || ''}</p>
                                     </div>
                                 </Link>
                                 <div>

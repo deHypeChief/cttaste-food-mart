@@ -77,24 +77,24 @@ export function MenueCard({ itemName, price, image, quantity = 0, onQuantityChan
     
     return (
         <div className="w-full rounded-lg overflow-clip bg-white ">
-            <div className="h-[200px] bg-gray-200 relative">
+            <div className="h-[120px] md:h-[200px] bg-gray-200 relative">
                 {image ? (
                     <img src={image} alt={itemName || 'Menu item'} className="w-full h-full object-cover" />
                 ) : null}
             </div>
-            <div className="px-5 pb-5 relative w-full">
+            <div className="px-3 md:px-5 pb-3 md:pb-5 relative w-full">
                 <div className="mt-4 w-full">
-                    <div className="flex justify-between">
-                        <h3 className="font-medium text-lg">{itemName}</h3>
+                    <div className="md:flex justify-between">
+                        <h3 className="font-medium text-sm md:text-lg ">{itemName}</h3>
                         <h3 className="font-medium text-lg">{price}</h3>
                     </div>
-                    <div className="mt-3">
+                    <div className="mt-3 ">
                         {qty === 0 ? (
-                            <Button icon="solar:cart-outline" className="w-full px-6 py-3" onClick={() => { setQty(1); onAdd && onAdd(); }}>
+                            <Button icon="" className="w-full px-6 py-3" onClick={() => { setQty(1); onAdd && onAdd(); }}>
                                 Add to Cart
                             </Button>
                         ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <Button
                                     icon="fluent:subtract-12-filled"
                                     className="py-3"

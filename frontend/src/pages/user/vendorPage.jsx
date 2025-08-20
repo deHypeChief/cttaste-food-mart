@@ -136,27 +136,28 @@ export default function VendorInfo() {
     }, [menu, cartItems]);
 
     return (
-        <div className="mx-20 ml-24">
+        <div className="mx-5 md:mx-20 md:ml-24">
             <div className=" h-[55vh] bg-gray-200 mt-10 rounded-lg relative" style={vendor?.banner ? { backgroundImage: `url(${vendor.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
-                <div className="absolute" />
+                <div className="absolute inset-0 bg-black/40" />
 
-                <div className="p-10 flex h-full flex-col justify-end">
-                    <div className="flex justify-between items-end">
-                        <div className="flex gap-5 items-center">
-                            <div className="h-[100px] w-[100px] bg-pink-600 rounded-full overflow-hidden">
+
+                <div className="p-5 md:p-10 flex h-full flex-col justify-end relative">
+                    <div className="space-y-5 md:space-y-0 md:flex justify-between items-end">
+                        <div className="md:flex gap-5 items-center">
+                            <div className="h-[60px] md:h-[100px] w-[60px] md:w-[100px] bg-pink-600 rounded-full overflow-hidden">
                                 {vendor?.avatar && <img src={vendor.avatar} alt={title} className="w-full h-full object-cover" />}
                             </div>
 
                             <div>
                                 <div className="flex gap-2 items-center">
-                                    <H1>
+                                    <H1 className={"text-white"}>
                                         {title}
                                     </H1>
                                     <div className="bg-primary flex items-center justify-center text-center text-white h-[30px] w-[30px] rounded-full text-sm font-medium">
-                                        <p>{averageRating ?? '—'}</p>
+                                        <p className="">{averageRating ?? '—'}</p>
                                     </div>
                                 </div>
-                                <p>{vendor?.description || [vendor?.location, vendor?.vendorType].filter(Boolean).join(' • ')}</p>
+                                <p className="text-white">{vendor?.description || [vendor?.location, vendor?.vendorType].filter(Boolean).join(' • ')}</p>
                             </div>
                         </div>
                         <div>
@@ -227,7 +228,7 @@ export default function VendorInfo() {
                                             Share your experience with {title.toLowerCase()}
                                         </DialogDescription>
                                     </DialogHeader>
-                                    
+
                                     <div className="space-y-4 mt-6">
                                         {/* Name Input */}
                                         <div>
@@ -272,8 +273,8 @@ export default function VendorInfo() {
 
                                         {/* Submit Button */}
                                         <div className="flex gap-3 pt-4">
-                                            <Button 
-                                                variant="primary" 
+                                            <Button
+                                                variant="primary"
                                                 className="flex-1"
                                                 onClick={handleReviewSubmit}
                                             >
@@ -290,22 +291,22 @@ export default function VendorInfo() {
                     </div>
                 </div>
 
-                <div className="my-10 grid grid-cols-4 gap-5">
+                <div className="my-10 grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-5">
                     {loading && <div className="col-span-4 text-center opacity-60">Loading menu…</div>}
                     {error && <div className="col-span-4 text-center text-red-600">{error}</div>}
                     {!loading && !error && menu.length === 0 && (
                         <div className="col-span-4 text-center opacity-60">No menu items yet</div>
                     )}
-            {menu.map((m, idx) => (
+                    {menu.map((m, idx) => (
                         <MenueCard
                             key={m._id}
                             itemName={m.name}
                             price={m.price}
                             image={m.image}
                             quantity={quantities[idx] || 0}
-                onQuantityChange={(newQty) => updateQuantity(idx, newQty)}
-                onAdd={() => addItem({ vendorId: vendor?._id, menuItemId: m._id, name: m.name, price: m.price, image: m.image, quantity: 1 })}
-                onUpdate={(newQty) => updateQty(m._id, newQty)}
+                            onQuantityChange={(newQty) => updateQuantity(idx, newQty)}
+                            onAdd={() => addItem({ vendorId: vendor?._id, menuItemId: m._id, name: m.name, price: m.price, image: m.image, quantity: 1 })}
+                            onUpdate={(newQty) => updateQty(m._id, newQty)}
                         />
                     ))}
                 </div>

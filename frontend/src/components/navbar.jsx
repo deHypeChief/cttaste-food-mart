@@ -133,7 +133,7 @@ export default function Navbar() {
                                             </span>
                                         )}
                                     </div>
-                                    <span className="font-medium text-gray-700 hover:text-primary transition-colors">
+                                    <span className="font-medium text-gray-700 hover:text-primary transition-colors hidden md:block">
                                         {getUserDisplayName() || 'Profile'}
                                     </span>
                                 </div>
