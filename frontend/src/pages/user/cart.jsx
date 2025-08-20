@@ -29,7 +29,7 @@ export default function Cart() {
         })();
     }, []);
     return (
-        <div className="mx-20 ml-24 ">
+        <div className="mx-5 md:mx-20 md:*:ml-24 ">
             <div className="mt-10 flex justify-between">
                 <H1>My Cart - {count || 0}</H1>
                 <Button icon="gg:trash" className="px-6 py-3" onClick={clear}>
@@ -37,16 +37,16 @@ export default function Cart() {
                 </Button>
             </div>
 
-            <div className="mt-10 grid grid-cols-[1fr_0.5fr] gap-10">
+            <div className="mt-10 grid md:grid-cols-[1fr_0.5fr] gap-10">
                 <div>
                     <div className="space-y-5">
                         {isEmpty && (
                             <div className="text-center opacity-60">Your cart is empty</div>
                         )}
                         {items?.map((it) => (
-                            <div key={it.menuItemId} className="bg-white p-7 rounded-xl flex items-center justify-between">
-                                <div className="flex gap-5">
-                                    <div className="h-[100px] w-[100px] rounded-xl bg-gray-200 overflow-hidden">
+                            <div key={it.menuItemId} className="bg-white p-7 rounded-xl flex flex-col md:flex-row md:items-center justify-between space-y-3 md:space-y-0">
+                                <div className="flex gap-5 items-center">
+                                    <div className="h-[80px] w-[80px] md:h-[100px] md:w-[100px] rounded-xl bg-gray-200 overflow-hidden">
                                         {it.image && <img src={it.image} alt={it.name} className="w-full h-full object-cover" />}
                                     </div>
 
@@ -66,8 +66,8 @@ export default function Cart() {
                                 </div>
                                 <div>
                                     <div>
-                                        <h3 className="font-semibold text-2xl text-right">N {Number(it.price).toLocaleString()}</h3>
-                                        <div className="flex items-center gap-2 mt-3">
+                                        <h3 className="font-semibold text-2xl md:text-right">N {Number(it.price).toLocaleString()}</h3>
+                                        <div className="flex items-center gap-2 mt-3 justify-between ">
                                             <Button
                                                 icon="fluent:subtract-12-filled"
                                                 className="py-3"
@@ -116,7 +116,7 @@ export default function Cart() {
                 <div>
                     <p className="font-medium text-2xl">More Vendors</p>
                 </div>
-                <div className="my-10 grid grid-cols-4 gap-5">
+                <div className="my-10 grid grid-cols-2 md:grid-cols-4 gap-5">
                     {suggestLoading && (
                         <div className="col-span-4 text-center opacity-60">Loading vendors…</div>
                     )}

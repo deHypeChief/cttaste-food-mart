@@ -150,12 +150,12 @@ export default function Checkout() {
 
     return (
         <>
-            <div className="mx-20 ml-24">
+            <div className="mx-5 md:mx-20 md:ml-24">
                 <div className="mt-10">
                     <h1 className="text-3xl font-semibold">My Order</h1>
                 </div>
 
-                <div className="mt-10 grid grid-cols-[1fr_0.5fr] gap-10">
+                <div className="mt-10 md:grid grid-cols-[1fr_0.5fr] gap-10 space-y-10 md:space-y-0">
                     <div className="space-y-5">
                         <div className="bg-white p-7 rounded-xl ">
                             <div className="border-b border-border pb-3 flex justify-between items-center ">

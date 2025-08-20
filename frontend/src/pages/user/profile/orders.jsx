@@ -10,7 +10,7 @@ export default function Orders() {
                 </div>
 
                 <div className="space-y-5 pt-5">
-                    <div className="p-4 py-0 rounded-xl flex items-center justify-between">
+                    <div className="p-4 py-0 rounded-xl md:flex items-center justify-between space-y-5 md:space-y-0 bg-gray-50">
                         <div className="flex gap-5">
                             <div className="h-[100px] w-[100px] rounded-xl bg-gray-400" />
 
@@ -28,7 +28,7 @@ export default function Orders() {
                             </div>
                         </div>
                         <div>
-                            <div>
+                            <div className="flex md:block justify-between items-center gap-2">
                                 <h3 className="font-semibold text-2xl text-right">N 3000</h3>
                                 <p className="text-right font-medium text-lg opacity-60">Qty: 1</p>
                             </div>

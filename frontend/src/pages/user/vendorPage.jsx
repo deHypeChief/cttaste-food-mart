@@ -208,12 +208,12 @@ export default function VendorInfo() {
             </div>
 
             <div className="mt-10">
-                <div className="flex items-center justify-between">
-                    <Button icon="mynaui:filter" variant="outlineFade" className="px-0 py-3">
+                <div className="flex items-center justify-between w-full">
+                    {/* <Button icon="mynaui:filter" variant="outlineFade" className="px-0 py-3">
                         Fillter
-                    </Button>
+                    </Button> */}
 
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center justify-between w-full  gap-5">
                         {isAuthenticated && (
                             <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
                                 <DialogTrigger asChild>
