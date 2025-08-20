@@ -45,7 +45,7 @@ export default function Navbar() {
         return () => clearTimeout(handle);
         // include location to cancel pending navigations when route changes
     }, [searchTerm, location.pathname, location.search, navigate]);
-    
+
     // Helper function to get user display name
     const getUserDisplayName = () => {
         if (user?.session?.fullName) {
@@ -107,14 +107,14 @@ export default function Navbar() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-10">
-            <Link to="/cart">
+                    <div className="flex items-center gap-3 md:gap-10">
+                        <Link to="/cart">
                             <div className="flex items-center gap-2">
-                                <Icon icon="solar:cart-outline" className="size-5" />
-                <p className="font-medium">Cart - {count || 0}</p>
+                                <Icon icon="solar:cart-outline" className="size-4 md:size-5" />
+                                <p className="font-medium text-[.9rem] md:text-sm">Cart - {count || 0}</p>
                             </div>
                         </Link>
-                        
+
                         {isLoading ? (
                             <div className="animate-pulse bg-gray-300 h-10 w-20 rounded"></div>
                         ) : isCustomerLoggedIn ? (
@@ -122,9 +122,9 @@ export default function Navbar() {
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center overflow-hidden">
                                         {getUserProfileImage() ? (
-                                            <img 
-                                                src={getUserProfileImage()} 
-                                                alt="Profile" 
+                                            <img
+                                                src={getUserProfileImage()}
+                                                alt="Profile"
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
@@ -139,7 +139,7 @@ export default function Navbar() {
                                 </div>
                             </Link>
                         ) : (
-                            <Link to="/auth/login?type=customer " className="hidden md:block">
+                            <Link to="/auth/login?type=customer " className="md:block">
                                 <Button className="px-6 py-3 ">Login</Button>
                             </Link>
                         )}
