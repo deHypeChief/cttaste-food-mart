@@ -77,13 +77,13 @@ export default function Navbar() {
     return (
         <>
             <nav className="bg-white fixed top-0 w-screen z-20">
-                <div className="px-20 flex justify-between items-center py-2">
+                <div className="px-5 md:px-20 flex justify-between items-center py-2">
                     <div>
                         <div className="flex items-center gap-10">
                             <Link to="/">
-                                <img src="/Logo.svg" alt="logo" className="size-16" />
+                                <img src="/Logo.svg" alt="logo" className="size-10 md:size-16" />
                             </Link>
-                            <div className="mt-1 flex">
+                            <div className="hidden dmt-1 md:flex">
                                 <Input
                                     type="text"
                                     icon="ep:food"
@@ -95,7 +95,7 @@ export default function Navbar() {
                                         if (e.key === "Enter") submitSearch();
                                     }}
                                 />
-                                <button
+                                {/* <button
                                     type="button"
                                     onClick={submitSearch}
                                     className="ml-2 inline-flex items-center gap-1 px-3 py-3 border border-border/20 rounded-md text-sm text-gray-700 hover:bg-gray-50"
@@ -103,7 +103,7 @@ export default function Navbar() {
                                 >
                                     <Icon icon="mdi:magnify" className="size-5" />
                                     <span className="hidden sm:inline">Search</span>
-                                </button>
+                                </button> */}
                             </div>
                         </div>
                     </div>
@@ -139,8 +139,8 @@ export default function Navbar() {
                                 </div>
                             </Link>
                         ) : (
-                            <Link to="/auth/login?type=customer">
-                                <Button className="px-6 py-3">Login</Button>
+                            <Link to="/auth/login?type=customer " className="hidden md:block">
+                                <Button className="px-6 py-3 ">Login</Button>
                             </Link>
                         )}
                     </div>
@@ -154,10 +154,10 @@ export function AuthNavbar() {
     return (
         <>
             <nav className="fixed top-0 w-screen z-20">
-                <div className="px-20 flex justify-between items-center py-2">
+                <div className="px-5 md:px-20 flex justify-between items-center py-2">
                     <div >
                         <Link to="/">
-                            <img src="/Logo.svg" alt="logo" className="size-16" />
+                            <img src="/Logo.svg" alt="logo" className="size-10 md:size-16" />
                         </Link>
                     </div>
                 </div>

@@ -186,25 +186,25 @@ export default function Register() {
 
     return (
         <>
-            <div className="mx-20 ml-28 mt-12">
+            <div className="mx-5 md:mx-20 md:ml-28 w-screen md:w-auto">
                 {step === 3 ? (
-                    <h1 className="text-5xl font-medium leading-normal">
+                    <h1 className="text-4xl md:text-5xl font-medium leading-normal">
                         Secure <br /> Your account
                     </h1>
                 ) : step === 2 ? (
                     activeType === "customer" ? (
-                        <h1 className="text-5xl font-medium leading-normal">
+                        <h1 className="text-4xl md:text-5xl font-medium leading-normal">
                             Tell us <br /> about you
                         </h1>
                     ) : (
-                        <h1 className="text-5xl font-medium leading-normal">
+                        <h1 className="text-4xl md:text-5xl font-medium leading-normal">
                             Add your <br /> business details
                         </h1>
                     )
                 ) : (
-                    <h1 className="text-5xl font-medium leading-normal">
-                        Create a <br />
-                        {activeType === "customer" ? "Customer" : "Vendor"} Account
+                    <h1 className="text-4xl md:text-5xl font-medium leading-normal">
+                        Become a <br />
+                        {activeType === "customer" ? "Customer" : "Vendor"} 
                     </h1>
                 )}
 
@@ -239,8 +239,8 @@ export default function Register() {
                     </div>
                 )}
 
-                <div className="mt-8 w-[400px] space-y-8">
-                    <Form onSubmit={step === 3 ? onSubmit : (e) => e.preventDefault()} className="space-y-4">
+                <div className="mt-8 w-full md:w-[400px] space-y-3 md:space-y-8">
+                    <Form onSubmit={step === 3 ? onSubmit : (e) => e.preventDefault()} className="space-y-1 md:space-y-4">
                         {activeType === "customer" && (
                             <>
                                 {step === 1 && (

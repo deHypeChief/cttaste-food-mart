@@ -6,11 +6,11 @@ export default function AuthLayout() {
         <>
             <AuthNavbar />
             <main className="min-h-screen">
-                <div className="grid grid-cols-2 h-full">
-                    <div className="flex items-center">
+                <div className="md:grid grid-cols-2 h-screen md:h-full">
+                    <div className="flex items-center h-full">
                         <Outlet />
                     </div>
-                    <div className="bg-amber-200 h-screen"></div>
+                    <div className="bg-amber-200 h-screen hidden md:block"></div>
                 </div>
             </main>
         </>

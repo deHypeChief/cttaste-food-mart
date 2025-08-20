@@ -110,13 +110,13 @@ export default function Login() {
 
     return (
         <>
-            <div className="mx-20 ml-28">
-                <h1 className="text-5xl font-medium leading-normal">
+            <div className="mx-5 md:mx-20 md:ml-28 w-screen md:w-auto" >
+                <h1 className="text-4xl md:text-5xl font-medium leading-normal">
                     Hey, <br />
                     Welcome back
                 </h1>
 
-                <div>
+                <div className="w-full md:w-[400px]">
                     <div className="flex p-1 bg-[#EFEFEF] w-fit rounded">
                         <div
                             className={`px-5 py-2 rounded cursor-pointer ${activeType === "vendor" ? "bg-primary" : ""}`}
@@ -143,7 +143,7 @@ export default function Login() {
                     </div>
                 </div>
 
-                <div className="mt-8 w-[400px] space-y-8">
+                <div className="mt-8 w-full md:w-[400px] space-y-8">
                     <Form onSubmit={onSubmit} className="space-y-4">
                         <FormField label="Email" message={errors.email} htmlFor="email">
                             <Input

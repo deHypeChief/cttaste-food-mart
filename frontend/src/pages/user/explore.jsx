@@ -126,12 +126,12 @@ export default function Explore() {
     };
 
     return (
-        <div className="mx-20 ml-24">
+        <div className="mx-5 md:mx-20 md:ml-24">
             <div className=" h-[55vh] bg-gray-200 mt-10 rounded-lg relative overflow-hidden" style={heroBgStyle}>
                 {/* uniform dark overlay for readability */}
-                <div className="absolute inset-0 bg-black/20" />
+                <div className="absolute inset-0 bg-black/40" />
 
-                <div className="p-10 flex h-full flex-col justify-end relative z-[1]">
+                <div className="p-5 md:p-10 flex h-full flex-col justify-end relative z-[1]">
                     <div className="mb-5 flex gap-2">
                         {featured.map((_, idx) => (
                             <button
@@ -146,8 +146,8 @@ export default function Explore() {
                         )}
                     </div>
 
-                    <div className="w-[500px] max-w-full space-y-6 sm:space-y-10">
-                        <H1 className='text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]'>
+                    <div className="md:w-[500px] max-w-full space-y-6 sm:space-y-10">
+                        <H1 className='text-white'>
                             {activeVendor ? `Get discounts when you buy from ${activeTitle}` : 'Find meals you love from top vendors'}
                         </H1>
                         <Button className="px-6 py-3" onClick={() => goToVendor(activeVendor)} disabled={!activeVendor}>
@@ -158,10 +158,10 @@ export default function Explore() {
             </div>
 
             <div className="mt-10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col md:flex-row gap-3 md:gap-0 items-center justify-between">
+                    <div className="flex items-center gap-2 w-full md:w-fit">
                         <select
-                            className="px-3 py-2 border rounded-lg bg-white"
+                            className="px-3 py-2 border rounded-lg bg-white w-full md:w-fit"
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
                         >
@@ -170,7 +170,7 @@ export default function Explore() {
                             ))}
                         </select>
                     </div>
-                    <div className="w-[70%] flex gap-2 overflow-x-scroll hide-scrollbar">
+                    <div className="md:w-[70%] flex gap-2 overflow-x-scroll hide-scrollbar  w-full">
                         {exploreData.catList.map((cat) => (
                             <Button
                                 key={cat.name}
@@ -188,13 +188,13 @@ export default function Explore() {
                     </Button> */}
                 </div>
 
-                <div className="my-10 grid grid-cols-4 gap-5">
+                <div className="my-10 grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-5">
                     {loading && <div className="col-span-4 text-center opacity-60">Loading vendors…</div>}
                     {error && <div className="col-span-4 text-center text-red-600">{error}</div>}
                     {!loading && !error && vendors.length === 0 && (
                         <div className="col-span-4 text-center opacity-60">No vendors available</div>
                     )}
-            {vendors.map((v) => (
+                    {vendors.map((v) => (
                         <ExploreCard
                             key={v._id}
                             vendorName={v.restaurantName?.toLowerCase().replace(/\s+/g, '')}
@@ -204,15 +204,15 @@ export default function Explore() {
                             avatar={v.avatar}
                             banner={v.banner}
                             location={v.location}
-                id={v._id}
-                initiallyLiked={favIds.has(v._id)}
-                onToggled={(favorited) => {
-                    setFavIds((prev) => {
-                        const next = new Set(prev);
-                        if (favorited) next.add(v._id); else next.delete(v._id);
-                        return next;
-                    });
-                }}
+                            id={v._id}
+                            initiallyLiked={favIds.has(v._id)}
+                            onToggled={(favorited) => {
+                                setFavIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (favorited) next.add(v._id); else next.delete(v._id);
+                                    return next;
+                                });
+                            }}
                         />
                     ))}
                 </div>

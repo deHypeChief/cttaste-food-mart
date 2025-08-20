@@ -28,35 +28,35 @@ export function ExploreCard({ vendorName, name, vendorType, description, avatar,
         <>
             <Link to={`/vendor/${slug}?id=${encodeURIComponent(id || '')}`}>
                 <div className="w-full rounded-lg overflow-clip bg-white ">
-                    <div className="h-[200px] bg-gray-200 relative" style={banner ? { backgroundImage: `url(${banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
-                        <div className="inline-flex items-center px-3 py-1.5 bg-primary rounded-full text-sm font-medium text-gray-700 absolute top-4 left-5">
-                            <p className="text-xs text-white font-medium">{vendorType || 'Category'}</p>
+                    <div className="h-[120px] md:h-[200px] bg-gray-200 relative" style={banner ? { backgroundImage: `url(${banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                        <div className="inline-flex items-center px-3 py-1.5 bg-primary rounded-full text-sm font-medium text-gray-700 absolute top-4 left-3 md:left-5">
+                            <p className="text-[.6rem] md:text-xs text-white font-medium">{vendorType || 'Category'}</p>
                         </div>
                     </div>
-                    <div className="px-5 pb-5 -mt-8 relative">
-                        <div className="w-[60px] h-[60px] bg-primary rounded-full top-5 left-5 flex items-center justify-center overflow-hidden">
+                    <div className="px-3 md:px-5 pb-3 md:pb-5 -mt-5 md:-mt-8 relative">
+                        <div className="w-[40px] h-[40px] md:w-[60px] md:h-[60px] bg-primary rounded-full top-5 left-5 flex items-center justify-center overflow-hidden">
                             {avatar ? (
                                 <img src={avatar} alt={`${name || 'Vendor'} logo`} className="w-full h-full object-cover" />
                             ) : (
                                 <Icon icon="mdi:store" className="text-white size-6" />
                             )}
                         </div>
-                        <div className="flex justify-between mt-2">
+                        <div className="flex justify-between mt-2 gap-2 items-center">
                             <div className="min-w-0">
-                                <h3 className="font-medium text-lg truncate">{name || 'Vendor'}</h3>
-                                <p className="text-sm opacity-60 truncate">{description || [location, vendorType].filter(Boolean).join(' • ') || 'Best Meals with drinks n wines'}</p>
+                                <h3 className="font-medium text-xs md:text-lg truncate">{name || 'Vendor'}</h3>
+                                <p className="text-xs md:text-sm opacity-60 truncate">{description || [location, vendorType].filter(Boolean).join(' • ') || 'Best Meals with drinks n wines'}</p>
                             </div>
                             <div>
                                 <button
                                     type="button"
-                                    className="flex items-center justify-center size-8 transition-colors"
+                                    className="flex items-center justify-center gap-2 md:size-8 transition-colors"
                                     aria-label={liked ? "Unlike" : "Like"}
                                     onClick={handleToggle}
                                 >
                                     {liked ? (
-                                        <Icon icon="solar:heart-bold" className="text-primary size-6" />
+                                        <Icon icon="solar:heart-bold" className="text-primary size-4 md:size-6" />
                                     ) : (
-                                        <Icon icon="solar:heart-outline" className="text-primary size-6" />
+                                        <Icon icon="solar:heart-outline" className="text-primary size-4 md:size-6" />
                                     )}
                                 </button>
                             </div>
