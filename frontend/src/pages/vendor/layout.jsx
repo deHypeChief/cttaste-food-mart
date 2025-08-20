@@ -2,10 +2,17 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import Button from "../../components/button";
 import { useAuth } from "../../hooks/useAuth.js";
+import { useEffect, useState } from "react";
 
 export default function VendorLayout() {
     const location = useLocation();
     const { vendor } = useAuth();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Close mobile sidebar when route changes
+    useEffect(() => {
+        setIsSidebarOpen(false);
+    }, [location.pathname]);
 
     // Function to check if a path is active
     const isActive = (path) => {
@@ -56,14 +63,57 @@ export default function VendorLayout() {
         { to: '/vendor/settings', active: '/settings', icon: 'lsicon:setting-outline', label: 'Setting' },
     ];
 
+    const SidebarNav = () => (
+        <nav className="p-4 space-y-2 h-full overflow-y-auto flex flex-col justify-between">
+            <div>
+                {mainLinks.map((link) => (
+                    <Link key={link.to} to={link.to}>
+                        <button
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${
+                                isActive(link.active) ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            <Icon icon={link.icon} className="w-5 h-5" />
+                            {link.label}
+                        </button>
+                    </Link>
+                ))}
+            </div>
+
+            <div className="border-t border-gray-200 mt-8 pt-4">
+                {footerLinks.map((link) => (
+                    <Link key={link.to} to={link.to}>
+                        <button
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${
+                                isActive(link.active) ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            <Icon icon={link.icon} className="w-5 h-5" />
+                            {link.label}
+                        </button>
+                    </Link>
+                ))}
+            </div>
+        </nav>
+    );
+
     return (
         <>
             <div className="h-screen flex flex-col">
                 {/* Header */}
-                <header className="bg-white border-b border-gray-200 px-10 py-4 flex-shrink-0">
+                <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-4 flex-shrink-0">
                     <div className="flex items-center justify-between">
                         {/* Logo */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                            {/* Mobile: sidebar toggle */}
+                            <button
+                                type="button"
+                                className="md:hidden p-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                                aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+                                onClick={() => setIsSidebarOpen((v) => !v)}
+                            >
+                                <Icon icon={isSidebarOpen ? 'mdi:close' : 'mdi:menu'} className="w-6 h-6" />
+                            </button>
                             <img src="/Logo.svg" alt="" className="size-12" />
                         </div>
 
@@ -113,43 +163,47 @@ export default function VendorLayout() {
                 </header>
 
                 <div className="flex flex-1 overflow-hidden">
-                    {/* Sidebar */}
-                    <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 pt-4">
-                        <nav className="p-4 space-y-2 h-full overflow-y-auto flex flex-col justify-between">
-                            <div>
-                                {mainLinks.map((link) => (
-                                    <Link key={link.to} to={link.to}>
-                                        <button
-                                            className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${
-                                                isActive(link.active) ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-100'
-                                            }`}
-                                        >
-                                            <Icon icon={link.icon} className="w-5 h-5" />
-                                            {link.label}
-                                        </button>
-                                    </Link>
-                                ))}
-                            </div>
-
-                            <div className="border-t border-gray-200 mt-8 pt-4">
-                                {footerLinks.map((link) => (
-                                    <Link key={link.to} to={link.to}>
-                                        <button
-                                            className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors ${
-                                                isActive(link.active) ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-100'
-                                            }`}
-                                        >
-                                            <Icon icon={link.icon} className="w-5 h-5" />
-                                            {link.label}
-                                        </button>
-                                    </Link>
-                                ))}
-                            </div>
-                        </nav>
+                    {/* Sidebar - Desktop */}
+                    <aside className="hidden md:block w-64 bg-white border-r border-gray-200 flex-shrink-0 pt-4">
+                        <SidebarNav />
                     </aside>
 
+                    {/* Sidebar - Mobile overlay */}
+                    <div className={`md:hidden  fixed inset-0 z-40 ${isSidebarOpen ? '' : 'pointer-events-none'}`}>
+                        {/* Backdrop */}
+                        <div
+                            className={`absolute inset-0 bg-black/40 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
+                            onClick={() => setIsSidebarOpen(false)}
+                            aria-hidden="true"
+                        />
+                        {/* Slide-in panel */}
+                        <aside
+                            className={`absolute left-0 top-0 h-[100dvh] w-64 bg-white border-r border-gray-200 pt-4 transform transition-transform duration-300 overflow-hidden flex flex-col ${
+                                isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                            }`}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Navigation menu"
+                        >
+                            <div className="px-4 pb-2 flex items-center justify-between">
+                                <span className="font-semibold">Menu</span>
+                                <button
+                                    type="button"
+                                    className="p-2 rounded-md hover:bg-gray-100"
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    aria-label="Close menu"
+                                >
+                                    <Icon icon="mdi:close" className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <SidebarNav />
+                            </div>
+                        </aside>
+                    </div>
+
                     {/* Main Content */}
-                    <main className="flex-1 p-8 overflow-y-auto">
+                    <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
                         <Outlet />
                     </main>
                 </div>

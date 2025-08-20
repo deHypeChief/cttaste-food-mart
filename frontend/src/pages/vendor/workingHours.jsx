@@ -117,44 +117,44 @@ export default function WorkingHours() {
 
   return (
     <div className="bg-[#fdf6f1] min-h-screen">
-      <div className=" mx-auto">
-        <h1 className="text-3xl font-semibold mb-8 text-gray-900">Working Hours</h1>
+      <div className="mx-auto md:px-4 sm:px-0 max-w-5xl">
+        <h1 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 text-gray-900">Working Hours</h1>
   {loading && <p className="text-sm mb-4">Loading...</p>}
   {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
   {success && <p className="text-sm text-green-600 mb-4">{success}</p>}
         
-        <div className="bg-white rounded-xl p-8 shadow-sm">
+        <div className="bg-white rounded-xl p-4 sm:p-8 shadow-sm">
           <div className="space-y-6">
             {daysOfWeek.map((day) => (
-              <div key={day} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0 h-20">
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">{day}</h3>
+              <div key={day} className="flex flex-col sm:flex-row sm:items-center items-start justify-between gap-4 sm:gap-6 py-4 border-b border-gray-100 last:border-b-0">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900">{day}</h3>
                 </div>
-                
-                <div className="flex items-center gap-6">
+
+                <div className="flex flex-wrap items-center gap-3 sm:gap-6">
                   {workingHours[day]?.isOpen && (
                     <>
                       {/* Start Time */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Icon icon="majesticons:clock-line" className="w-5 h-5 text-gray-400" />
                         <span className="text-sm text-gray-500 whitespace-nowrap">Start Time</span>
                         <Input
                           type="time"
                           value={workingHours[day]?.startTime || "09:00"}
                           onChange={(e) => handleTimeChange(day, "startTime", e.target.value)}
-                          className="w-32"
+                          className="w-28 sm:w-32"
                         />
                       </div>
                       
                       {/* Closing Time */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Icon icon="majesticons:clock-line" className="w-5 h-5 text-gray-400" />
                         <span className="text-sm text-gray-500 whitespace-nowrap">Closing Time</span>
                         <Input
                           type="time"
                           value={workingHours[day]?.closingTime || "18:00"}
                           onChange={(e) => handleTimeChange(day, "closingTime", e.target.value)}
-                          className="w-32"
+                          className="w-28 sm:w-32"
                         />
                       </div>
                     </>
@@ -172,14 +172,14 @@ export default function WorkingHours() {
           </div>
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-4 mt-8 pt-6 border-t border-gray-200">
-            <Button onClick={handleSave} variant="primary" className="px-8" disabled={saving}>
+          <div className="flex flex-col sm:flex-row sm:items-center items-stretch gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-200">
+            <Button onClick={handleSave} variant="primary" className="px-6 sm:px-8 w-full sm:w-auto" disabled={saving}>
               {saving ? 'Saving...' : 'Save'}
             </Button>
             <Button
               onClick={handleDiscard}
               variant="outlineFade"
-              className="px-8"
+              className="px-6 sm:px-8 w-full sm:w-auto"
             >
               Discard
             </Button>

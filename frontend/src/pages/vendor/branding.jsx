@@ -43,7 +43,7 @@ export default function Branding() {
   };
 
   return (
-    <div className="bg-[#fdf6f1] min-h-screen p-8">
+    <div className="bg-[#fdf6f1] min-h-screen md:p-8">
       <h1 className="text-3xl font-semibold mb-8 text-gray-900">Brand Promotion</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

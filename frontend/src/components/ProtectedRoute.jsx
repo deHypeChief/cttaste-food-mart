@@ -4,10 +4,20 @@ import { useAuth } from '../hooks/useAuth.js';
 
 // Loading component
 const LoadingSpinner = () => (
-    <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        <div className="ml-4">
-            <p className="text-lg font-medium">Checking authentication...</p>
+    <div className="min-h-screen w-full flex items-center justify-center bg-white px-6">
+        <div className="flex flex-col items-center gap-4" role="status" aria-live="polite" aria-busy="true">
+            <div className="relative">
+                {/* Logo holder */}
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-white shadow flex items-center justify-center">
+                    <img src="/Logo.svg" alt="Company logo" className="h-10 w-10 sm:h-12 sm:w-12" />
+                </div>
+                {/* Spinning ring */}
+                <div className="absolute inset-0 -m-3 rounded-full border-4 border-primary/20 border-t-primary motion-safe:animate-spin"></div>
+            </div>
+            <div className="text-center">
+                <p className="text-sm sm:text-base font-medium text-gray-700">Checking authentication...</p>
+                <p className="text-xs text-gray-500 mt-1">Hang tight, this won’t take long.</p>
+            </div>
         </div>
     </div>
 );

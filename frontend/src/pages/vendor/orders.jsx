@@ -110,7 +110,7 @@ export default function VendorOrders() {
 						type="text"
 						placeholder="Search Orders"
 						icon="majesticons:search-line"
-						className="w-[500px]"
+						className="w-full sm:w-[500px]"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 					/>
@@ -127,7 +127,12 @@ export default function VendorOrders() {
 			{error && (
 				<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mb-4">{error}</div>
 			)}
-			<OrdersTable columns={columns} data={rows} onRowClick={openDetails} />
+			{/* Responsive table wrapper for horizontal scroll on small screens */}
+			<div className="overflow-x-auto -mx-4 sm:mx-0">
+				<div className="inline-block align-middle min-w-[800px] sm:min-w-0 w-full">
+					<OrdersTable columns={columns} data={rows} onRowClick={openDetails} />
+				</div>
+			</div>
 
 			<Dialog open={detailOpen} onOpenChange={setDetailOpen}>
 				<DialogContent className="max-w-2xl">
@@ -150,8 +155,8 @@ export default function VendorOrders() {
 								<p className="text-sm text-gray-500">Delivery Address</p>
 								<p className="font-medium">{detail.address}</p>
 							</div>
-							<div className="border rounded-lg">
-								<table className="w-full text-sm">
+							<div className="border rounded-lg overflow-x-auto">
+								<table className="w-full min-w-[480px] text-sm">
 									<thead>
 										<tr className="text-left bg-gray-50">
 											<th className="p-2">Item</th>

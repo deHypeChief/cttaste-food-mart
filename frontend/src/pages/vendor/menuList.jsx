@@ -203,7 +203,8 @@ export default function MenuList() {
 
   return (
     <div className="bg-[#fdf6f1] min-h-screen">
-      <h1 className="text-3xl font-semibold mb-8 text-gray-900">Your Menu List</h1>
+      <div className="max-w-6xl mx-auto px- sm:px-0">
+      <h1 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 text-gray-900">Your Menu List</h1>
   {error && <p className="text-red-600 mb-4 text-sm">{error}</p>}
   {loading && <p className="mb-4 text-sm">Loading menu...</p>}
       
@@ -224,7 +225,7 @@ export default function MenuList() {
       </div>
 
   {/* Search and Add Item */}
-      <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center items-stretch gap-3 sm:gap-4 mb-6">
         <div className="flex-1 w-full">
           <Input
             type="text"
@@ -232,14 +233,14 @@ export default function MenuList() {
             icon="majesticons:search-line"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-[500px]"
+            className="w-full sm:w-[500px]"
           />
         </div>
         <Button 
           variant="outlineFade"
           icon="majesticons:filter-line"
           iconPosition="left"
-          className="px-6 py-3"
+          className="px-6 py-3 w-full sm:w-auto"
         >
           Date Sort
         </Button>
@@ -249,7 +250,7 @@ export default function MenuList() {
           <DialogTrigger asChild>
             <Button 
               variant="primary"
-              className="px-6 py-3"
+              className="px-6 py-3 w-full sm:w-auto"
               onClick={() => setDialogOpen(true)}
             >
               Add Item
@@ -378,9 +379,9 @@ export default function MenuList() {
       </div>
 
       {/* Menu Items Table */}
-      <div className="bg-white rounded-xl p-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left">
+      <div className="bg-white rounded-xl p-4 sm:p-6">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="min-w-[720px] sm:min-w-full text-left">
             <thead>
               <tr className="border-b">
                 <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Food</th>
@@ -401,8 +402,8 @@ export default function MenuList() {
               {filteredItems.map((item) => (
                 <tr key={item._id} className="border-b last:border-b-0">
                   <td className="py-4 px-4">
-                    <div className="flex items-center gap-5">
-                      <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-4 sm:gap-5">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded-lg overflow-hidden">
                         {item.image ? (
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
@@ -418,7 +419,7 @@ export default function MenuList() {
                   <td className="py-4 px-4 text-gray-600 text-sm">{item.status}</td>
                   <td className="py-4 px-4 text-gray-900 font-medium">₦ {item.price}</td>
                   <td className="py-4 px-4">
-                    <div className="flex items-center gap-3 justify-end">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
                       <Switch
                         checked={item.isActive}
                         onChange={(isActive) => handleToggleItem(item._id, isActive)}
@@ -531,6 +532,7 @@ export default function MenuList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

@@ -131,34 +131,118 @@ export default function Analysis() {
     setWeeklyOrdersData(weekSeries);
   }, [orders, selectedPeriod]);
 
+  // Helpers: export, print, share
+  const downloadBlob = (content, mimeType, filename) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = () => {
+    try {
+      const report = {
+        generatedAt: new Date().toISOString(),
+        periodDays: Number(selectedPeriod),
+        summary: {
+          totalRevenue: cards.totalRevenue,
+          totalOrders: cards.totalOrders,
+          avgOrder: cards.avgOrder,
+        },
+        datasets: {
+          monthlyChartData,
+          revenueTrendData,
+          weeklyOrdersData,
+          topItemsData,
+          pieData,
+        },
+      };
+      const date = new Date().toISOString().split('T')[0];
+      downloadBlob(JSON.stringify(report, null, 2), 'application/json', `analysis-report-${date}.json`);
+    } catch (e) {
+      console.error('Export failed', e);
+      alert('Failed to export report.');
+    }
+  };
+
+  const handlePrint = () => {
+    try {
+      window.print();
+    } catch (e) {
+      console.error('Print failed', e);
+    }
+  };
+
+  const handleShare = async () => {
+    const title = 'Sales Analysis Report';
+    const text = `Period: Last ${selectedPeriod} days\nTotal Revenue: ₦${Number(cards.totalRevenue).toLocaleString()}\nTotal Orders: ${cards.totalOrders}\nAverage Order: ₦${Number(cards.avgOrder).toLocaleString()}`;
+    const url = window.location?.href || '';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+    } catch {
+      // ignore and fallback to clipboard
+    }
+    // Clipboard fallback
+    const summary = `${title}\n${text}${url ? `\n${url}` : ''}`;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(summary);
+        alert('Report summary copied to clipboard.');
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = summary;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        alert('Report summary copied to clipboard.');
+      }
+    } catch (e) {
+      console.error('Share failed', e);
+      alert('Sharing is not supported in this browser.');
+    }
+  };
+
   return (
     <div className="bg-[#fdf6f1] min-h-screen">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mb-4">
-          {error}
+      <div className="max-w-6xl mx-auto px-4 sm:px-0">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
+        {loading && (
+          <div className="text-sm text-gray-500 mb-4">Loading analysis…</div>
+        )}
+        <div className="flex flex-col sm:flex-row sm:items-center items-start justify-between gap-3 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">Sales Analysis</h1>
+          
+          {/* Period Selector */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-sm text-gray-600">Period:</span>
+            <select 
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-full sm:w-auto"
+            >
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 3 months</option>
+              <option value="365">Last year</option>
+            </select>
+          </div>
         </div>
-      )}
-      {loading && (
-        <div className="text-sm text-gray-500 mb-4">Loading analysis…</div>
-      )}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-semibold text-gray-900">Sales Analysis</h1>
-        
-        {/* Period Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Period:</span>
-          <select 
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 3 months</option>
-            <option value="365">Last year</option>
-          </select>
-        </div>
-      </div>
 
       {/* Empty/Inactive State */}
       {!loading && !hasData ? (
@@ -200,10 +284,10 @@ export default function Analysis() {
           </div>
 
           {/* Charts Row 1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Revenue Trend */}
             <LargeCard title="Revenue Trend" icon="majesticons:chart-line">
-              <div className="h-80">
+        <div className="h-64 sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={revenueTrendData}>
                     <defs>
@@ -234,7 +318,7 @@ export default function Analysis() {
 
             {/* Sales by Category */}
             <LargeCard title="Top Items Share" icon="majesticons:pie-chart-line">
-              <div className="h-80 flex items-center justify-center">
+              <div className="h-64 sm:h-80 flex items-center justify-center">
                 <div className="w-full h-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -266,7 +350,7 @@ export default function Analysis() {
               </div>
               
               {/* Legend */}
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {pieData.map((item, index) => (
                   <div key={index} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
@@ -284,7 +368,7 @@ export default function Analysis() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Weekly Orders */}
             <LargeCard title="Weekly Order Pattern" icon="majesticons:calendar-line">
-              <div className="h-80">
+              <div className="h-64 sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyOrdersData}>
                     <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={12} />
@@ -342,20 +426,20 @@ export default function Analysis() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-4">
-            <Button variant="primary" icon="majesticons:download-line">
+          <div className="flex flex-col sm:flex-row sm:items-center items-stretch gap-3 sm:gap-4">
+            <Button onClick={handleExport} className="w-full sm:w-auto" variant="primary" icon="majesticons:download-line">
               Export Report
             </Button>
-            <Button variant="outlineFade" icon="majesticons:printer-line">
+            <Button onClick={handlePrint} className="w-full sm:w-auto" variant="outlineFade" icon="majesticons:printer-line">
               Print Analysis
             </Button>
-            <Button variant="outlineFade" icon="majesticons:share-line">
+            <Button onClick={handleShare} className="w-full sm:w-auto" variant="outlineFade" icon="majesticons:share-line">
               Share Report
             </Button>
           </div>
         </>
       )}
-      
+      </div>
     </div>
   );
 }
