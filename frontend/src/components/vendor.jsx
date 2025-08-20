@@ -5,7 +5,7 @@ import Button from "./button";
 import { favoritesService } from "../api/favorites";
 import { useAuth } from "../hooks/useAuth.js";
 
-export function ExploreCard({ vendorName, name, vendorType, description, avatar, banner, location, id, initiallyLiked = false, onToggled }) {
+export function ExploreCard({ vendorName, name, vendorType, description, avatar, banner, location, id, initiallyLiked = false, onToggled, isCurrentlyOpen = true }) {
     const [liked, setLiked] = useState(initiallyLiked);
     const { userType } = useAuth();
     const slug = useMemo(() => vendorName || (name ? name.toLowerCase().replace(/\s+/g, '') : 'unknown'), [vendorName, name]);
@@ -25,51 +25,61 @@ export function ExploreCard({ vendorName, name, vendorType, description, avatar,
         }
     };
     return (
-        <>
-            <Link to={`/vendor/${slug}?id=${encodeURIComponent(id || '')}`}>
-                <div className="w-full rounded-lg overflow-clip bg-white ">
-                    <div className="h-[120px] md:h-[200px] bg-gray-200 relative" style={banner ? { backgroundImage: `url(${banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
-                        <div className="inline-flex items-center px-3 py-1.5 bg-primary rounded-full text-sm font-medium text-gray-700 absolute top-4 left-3 md:left-5">
-                            <p className="text-[.6rem] md:text-xs text-white font-medium">{vendorType || 'Category'}</p>
-                        </div>
+        <div className={`w-full rounded-lg overflow-clip bg-white relative ${!isCurrentlyOpen ? 'opacity-60 pointer-events-none' : ''}`}>
+            {!isCurrentlyOpen && (
+                <div className="absolute right-3 top-3 bg-red-500 text-white px-2 py-1 rounded text-xs">Closed</div>
+            )}
+
+            <div
+                onClick={() => { if (isCurrentlyOpen) window.location.href = `/vendor/${slug}?id=${encodeURIComponent(id || '')}`; }}
+                role="button"
+                tabIndex={0}
+                className="cursor-pointer"
+            >
+                <div className="h-[120px] md:h-[200px] bg-gray-200 relative" style={banner ? { backgroundImage: `url(${banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                    <div className="inline-flex items-center px-3 py-1.5 bg-primary rounded-full text-sm font-medium text-gray-700 absolute top-4 left-3 md:left-5">
+                        <p className="text-[.6rem] md:text-xs text-white font-medium">{vendorType || 'Category'}</p>
                     </div>
-                    <div className="px-3 md:px-5 pb-3 md:pb-5 -mt-5 md:-mt-8 relative">
-                        <div className="w-[40px] h-[40px] md:w-[60px] md:h-[60px] bg-primary rounded-full top-5 left-5 flex items-center justify-center overflow-hidden">
-                            {avatar ? (
-                                <img src={avatar} alt={`${name || 'Vendor'} logo`} className="w-full h-full object-cover" />
-                            ) : (
-                                <Icon icon="mdi:store" className="text-white size-6" />
-                            )}
+                </div>
+
+                <div className="px-3 md:px-5 pb-3 md:pb-5 -mt-5 md:-mt-8 relative">
+                    <div className="w-[40px] h-[40px] md:w-[60px] md:h-[60px] bg-primary rounded-full top-5 left-5 flex items-center justify-center overflow-hidden">
+                        {avatar ? (
+                            <img src={avatar} alt={`${name || 'Vendor'} logo`} className="w-full h-full object-cover" />
+                        ) : (
+                            <Icon icon="mdi:store" className="text-white size-6" />
+                        )}
+                    </div>
+
+                    <div className="flex justify-between mt-2 gap-2 items-center">
+                        <div className="min-w-0">
+                            <h3 className="font-medium text-xs md:text-lg truncate">{name || 'Vendor'}</h3>
+                            <p className="text-xs md:text-sm opacity-60 truncate">{description || [location, vendorType].filter(Boolean).join(' • ') || 'Best Meals with drinks n wines'}</p>
                         </div>
-                        <div className="flex justify-between mt-2 gap-2 items-center">
-                            <div className="min-w-0">
-                                <h3 className="font-medium text-xs md:text-lg truncate">{name || 'Vendor'}</h3>
-                                <p className="text-xs md:text-sm opacity-60 truncate">{description || [location, vendorType].filter(Boolean).join(' • ') || 'Best Meals with drinks n wines'}</p>
-                            </div>
-                            <div>
-                                <button
-                                    type="button"
-                                    className="flex items-center justify-center gap-2 md:size-8 transition-colors"
-                                    aria-label={liked ? "Unlike" : "Like"}
-                                    onClick={handleToggle}
-                                >
-                                    {liked ? (
-                                        <Icon icon="solar:heart-bold" className="text-primary size-4 md:size-6" />
-                                    ) : (
-                                        <Icon icon="solar:heart-outline" className="text-primary size-4 md:size-6" />
-                                    )}
-                                </button>
-                            </div>
+
+                        <div>
+                            <button
+                                type="button"
+                                className="flex items-center justify-center gap-2 md:size-8 transition-colors"
+                                aria-label={liked ? "Unlike" : "Like"}
+                                onClick={handleToggle}
+                            >
+                                {liked ? (
+                                    <Icon icon="solar:heart-bold" className="text-primary size-4 md:size-6" />
+                                ) : (
+                                    <Icon icon="solar:heart-outline" className="text-primary size-4 md:size-6" />
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
-            </Link>
-        </>
+            </div>
+        </div>
     );
 }
 
 
-export function MenueCard({ itemName, price, image, quantity = 0, onQuantityChange, onAdd, onUpdate }) {
+export function MenueCard({ itemName, price, image, quantity = 0, onQuantityChange, onAdd, onUpdate, vendorOpen = true }) {
     // Use internal state if no external control is provided
     const [internalQty, setInternalQty] = useState(0);
     const qty = onQuantityChange ? quantity : internalQty;
@@ -90,15 +100,15 @@ export function MenueCard({ itemName, price, image, quantity = 0, onQuantityChan
                     </div>
                     <div className="mt-3 ">
                         {qty === 0 ? (
-                            <Button icon="" className="w-full px-6 py-3" onClick={() => { setQty(1); onAdd && onAdd(); }}>
-                                Add to Cart
-                            </Button>
-                        ) : (
+                                <Button icon="" className="w-full px-6 py-3" onClick={() => { setQty(1); onAdd && onAdd(); }} disabled={!vendorOpen} aria-disabled={!vendorOpen}>
+                                    {vendorOpen ? 'Add to Cart' : 'Closed'}
+                                </Button>
+                            ) : (
                             <div className="flex items-center gap-3">
                                 <Button
                                     icon="fluent:subtract-12-filled"
                                     className="py-3"
-                                    onClick={() => { const next = qty > 1 ? qty - 1 : 0; setQty(next); onUpdate && onUpdate(next); }}
+                                        onClick={() => { const next = qty > 1 ? qty - 1 : 0; setQty(next); onUpdate && onUpdate(next); }}
                                     aria-label="Decrease quantity"
                                 />
                                 <p className="w-full text-center font-medium text-lg opacity-60">{qty}</p>

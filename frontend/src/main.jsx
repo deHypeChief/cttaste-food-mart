@@ -9,6 +9,7 @@ import Login from './pages/auth/login'
 import AuthLayout from './pages/auth/layout'
 import Register from './pages/auth/register'
 import VendorInfo from './pages/user/vendorPage'
+import VOrder from './pages/public/vorder'
 import Cart from './pages/user/cart'
 import Checkout from './pages/user/checkout'
 import UserProfileLayout from './pages/user/profile/layout'
@@ -44,6 +45,9 @@ createRoot(document.getElementById('root')).render(
 						<Route path='/cart' element={<Cart />} />
 						<Route path='/checkout' element={<Checkout />} />
 					</Route>
+
+					{/* Public vendor order preview route used by WhatsApp quick links */}
+					<Route path="/vorder/:id" element={<VOrder />} />
 
 					<Route path="/user" element={
 						<ProtectedUserRoute>

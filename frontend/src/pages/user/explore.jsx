@@ -206,6 +206,7 @@ export default function Explore() {
                             location={v.location}
                             id={v._id}
                             initiallyLiked={favIds.has(v._id)}
+                            isCurrentlyOpen={v.isCurrentlyOpen}
                             onToggled={(favorited) => {
                                 setFavIds((prev) => {
                                     const next = new Set(prev);

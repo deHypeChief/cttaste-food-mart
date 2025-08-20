@@ -15,20 +15,57 @@ const listVendors = new Elysia()
             if (vendorType && vendorType !== 'All') filter.vendorType = vendorType;
             if (search) filter.restaurantName = { $regex: new RegExp(search, 'i') };
 
+            const now = new Date();
+            const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }); // e.g., 'Monday'
+
             const pageNum = Math.max(parseInt(page) || 1, 1);
             const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
 
             const [items, total] = await Promise.all([
                 Vendor.find(filter)
-                    .select('restaurantName vendorType description avatar banner location isActive isApproved')
+                    .select('restaurantName vendorType description avatar banner location isActive isApproved workingHours')
                     .sort({ createdAt: -1 })
                     .skip((pageNum - 1) * limitNum)
                     .limit(limitNum),
                 Vendor.countDocuments(filter)
             ]);
+            // Compute isCurrentlyOpen for each vendor and return full list (don't remove closed vendors)
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const parseMinutes = (timeStr = '00:00') => {
+                const [hh, mm] = (timeStr || '00:00').split(':').map(s => parseInt(s, 10) || 0);
+                return hh * 60 + mm;
+            };
+
+            const itemsWithStatus = items.map(v => {
+                const wh = v.workingHours?.get ? v.workingHours.get(dayName) : v.workingHours?.[dayName];
+                let isCurrentlyOpen = false;
+                if (wh && wh.isOpen) {
+                    const start = parseMinutes(wh.startTime);
+                    const end = parseMinutes(wh.closingTime);
+                    if (start <= end) {
+                        isCurrentlyOpen = currentMinutes >= start && currentMinutes <= end;
+                    } else {
+                        // Overnight
+                        isCurrentlyOpen = currentMinutes >= start || currentMinutes <= end;
+                    }
+                }
+                // Attach computed flag but don't expose workingHours by default (frontend can use other fields)
+                return {
+                    _id: v._id,
+                    restaurantName: v.restaurantName,
+                    vendorType: v.vendorType,
+                    description: v.description,
+                    avatar: v.avatar,
+                    banner: v.banner,
+                    location: v.location,
+                    isActive: v.isActive,
+                    isApproved: v.isApproved,
+                    isCurrentlyOpen,
+                };
+            });
 
             return SuccessHandler(set, 'Vendors fetched', {
-                items,
+                items: itemsWithStatus,
                 total,
                 page: pageNum,
                 limit: limitNum,
@@ -51,10 +88,44 @@ const listVendors = new Elysia()
     listVendors.get('/:id', async ({ set, params }) => {
         try {
             const { id } = params as { id: string };
+            // include workingHours so we can compute current open status
             const vendor = await Vendor.findOne({ _id: id, isApproved: true, isActive: true })
-                .select('restaurantName vendorType description avatar banner location isActive isApproved address cuisine');
+                .select('restaurantName vendorType description avatar banner location isActive isApproved address cuisine workingHours');
             if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
-            return SuccessHandler(set, 'Vendor fetched', { vendor }, true);
+
+            // compute isCurrentlyOpen same as list logic
+            const now = new Date();
+            const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const parseMinutes = (timeStr = '00:00') => {
+                const [hh, mm] = (timeStr || '00:00').split(':').map(s => parseInt(s, 10) || 0);
+                return hh * 60 + mm;
+            };
+            const wh = vendor.workingHours?.get ? vendor.workingHours.get(dayName) : vendor.workingHours?.[dayName];
+            let isCurrentlyOpen = false;
+            if (wh && wh.isOpen) {
+                const start = parseMinutes(wh.startTime);
+                const end = parseMinutes(wh.closingTime);
+                if (start <= end) isCurrentlyOpen = currentMinutes >= start && currentMinutes <= end;
+                else isCurrentlyOpen = currentMinutes >= start || currentMinutes <= end;
+            }
+
+            const out = {
+                _id: vendor._id,
+                restaurantName: vendor.restaurantName,
+                vendorType: vendor.vendorType,
+                description: vendor.description,
+                avatar: vendor.avatar,
+                banner: vendor.banner,
+                location: vendor.location,
+                isActive: vendor.isActive,
+                isApproved: vendor.isApproved,
+                address: vendor.address,
+                cuisine: vendor.cuisine,
+                isCurrentlyOpen,
+            };
+
+            return SuccessHandler(set, 'Vendor fetched', { vendor: out }, true);
         } catch (err) {
             throw ErrorHandler.ServerError(set, 'Error fetching vendor', err);
         }

@@ -132,8 +132,66 @@ export default function Checkout() {
             } finally {
                 console.groupEnd?.();
             }
+            
             // Place each vendor order separately
             const responses = await Promise.all(payloads.map((p) => ordersService.placeOrder(p)));
+            // After orders are created, open WhatsApp links per vendor with a link to the order summary page
+            try {
+                const formatPhoneForWa = (raw) => {
+                    if (!raw) return null;
+                    let d = String(raw).replace(/\D/g, '');
+                    // replace leading 0 with country code 234 for local Nigerian numbers
+                    if (d.length === 11 && d.startsWith('0')) d = '234' + d.slice(1);
+                    if (d.length === 10 && d.startsWith('0')) d = '234' + d.slice(1);
+                    // if number already starts with country code (e.g. 234...), leave as is
+                    if (d.length >= 10) return d;
+                    return null;
+                };
+
+                const host = window.location.origin;
+
+                for (let i = 0; i < responses.length; i++) {
+                    const res = responses[i];
+                    const p = payloads[i];
+                    try {
+                        // Normalize response to find created order id and vendorId
+                        const maybe = res?.data?.order || res?.data || res?.order || res;
+                        const order = maybe?.order || maybe || null;
+                        const orderId = order?._id || order?.id || (order && order._id) || null;
+
+                        const v = vendorsInfo[p.vendorId];
+                        const rawPhone = v?.phoneNumber || v?.phone || '';
+                        const phone = formatPhoneForWa(rawPhone);
+                        if (!phone) continue;
+
+                        const vendorTotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
+                        const itemCount = (p.items || []).reduce((s, it) => s + Number(it.quantity || 0), 0);
+
+                        let msg = '';
+                        msg += `from: ${customer.name}\n`;
+                        msg += `total: ₦ ${vendorTotal.toLocaleString()}\n`;
+                        msg += `items: ${itemCount}\n`;
+                        msg += `----------------------------------\n`;
+                        for (const it of p.items) {
+                            msg += `*${it.name}*\n`;
+                            msg += `Oty: ${it.quantity}\n`;
+                            msg += `Amt: ₦ ${Number(it.price * it.quantity).toLocaleString()}\n`;
+                            msg += `\n`;
+                        }
+
+                        // append a vendor order summary link so vendor can open a quick summary page
+                        if (orderId) {
+                            const vorderUrl = `${host}/vorder/${orderId}`;
+                            msg += `Order summary: ${vorderUrl}\n`;
+                        }
+
+                        const wa = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+                        try { window.open(wa, '_blank'); } catch { /* ignore popup failures */ }
+                    } catch { /* continue on per-vendor errors */ }
+                }
+            } catch (err) {
+                console.warn('Failed to open WhatsApp links after order placement', err);
+            }
             try {
                 console.groupCollapsed('[Checkout] Order responses');
                 console.log('Responses:', responses);

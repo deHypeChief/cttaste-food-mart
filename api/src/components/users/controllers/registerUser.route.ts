@@ -7,6 +7,8 @@ import { UserValidator } from "../_setup";
 import { NotifyUser } from "../../notification/_model";
 import NotificationHandler from "../../../services/notificationHandler.service";
 import { rewardReferralChain } from "../../../services/referalToken.service";
+import EmailHandler from '../../../services/emailHandler.service';
+import { signIn } from '../../../emails/signIn.template';
 
 const registerUser = new Elysia()
     .post("/register", async ({ set, body, query }) => {
@@ -64,6 +66,14 @@ const registerUser = new Elysia()
                 `Hey ${newClient.fullName}, you're all set! Let's get you your next property.`,
                 "Welcome to Lodgify! 🎉",
             );
+
+            // Send welcome email to user
+            try {
+                const template = await signIn({ name: newClient.fullName });
+                if (newClient.email) await EmailHandler.send(newClient.email, `Welcome to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
+            } catch (e) {
+                // ignore
+            }
 
 
 

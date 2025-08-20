@@ -6,6 +6,8 @@ import SuccessHandler from "../../../services/successHandler.service";
 import { VendorValidator } from "../_setup";
 import { NotifyUser } from "../../notification/_model";
 import NotificationHandler from "../../../services/notificationHandler.service";
+import EmailHandler from '../../../services/emailHandler.service';
+import { signIn } from '../../../emails/signIn.template';
 
 const registerVendor = new Elysia()
     .post("/register", async ({ set, body }) => {
@@ -72,6 +74,16 @@ const registerVendor = new Elysia()
                 `Hey ${newClient.fullName}, welcome to CTtaste! Your restaurant "${restaurantName}" is pending approval.`,
                 "Welcome to CTtaste! 🎉",
             );
+
+            // Send welcome email if vendor allows email notifications (default true)
+            try {
+                const template = await signIn({ name: newClient.fullName });
+                if (newVendor.emailNotifications) {
+                    await EmailHandler.send(newClient.email, `Welcome to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
+                }
+            } catch (e) {
+                // ignore email errors
+            }
 
             return SuccessHandler(
                 set,

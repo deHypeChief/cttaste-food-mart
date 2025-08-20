@@ -6,6 +6,8 @@ import SuccessHandler from "../../../services/successHandler.service";
 import { User } from "../_model";
 import AuthHandler from "../../../services/authHandler.service";
 import { jwtSessionAccess, jwtSessionRefresh } from "../../../middleware/jwt.middleware";
+import EmailHandler from '../../../services/emailHandler.service';
+import { signIn } from '../../../emails/signIn.template';
 
 const signUser = new Elysia()
     .use(jwtSessionAccess)
@@ -48,7 +50,11 @@ const signUser = new Elysia()
                 sessionAccessJwt,
                 sessionRefreshJwt
             )
-            
+            // Send login alert email to user (assumption: users want login alerts)
+            try {
+                const template = await signIn({ name: checkUser.fullName });
+                if (checkUser.email) EmailHandler.send(checkUser.email, `New sign in to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
+            } catch (e) {}
             return SuccessHandler(
                 set,
                 "User Signed In",

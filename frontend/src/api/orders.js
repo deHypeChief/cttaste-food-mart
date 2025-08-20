@@ -6,6 +6,11 @@ export const ordersService = {
   return apiClient.post(API_ENDPOINTS.ORDERS_PLACE, payload);
   },
 
+  // User: list own orders (history)
+  async listUserOrders(params = {}) {
+    return apiClient.get('/orders', { params });
+  },
+
   // Vendor: list own orders
   async listVendorOrders(params = {}) {
   return apiClient.get(API_ENDPOINTS.VENDOR_ORDERS, { params });

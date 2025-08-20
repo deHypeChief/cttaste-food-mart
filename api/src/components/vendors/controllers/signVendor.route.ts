@@ -6,6 +6,8 @@ import AuthHandler from "../../../services/authHandler.service";
 import { jwtSessionAccess, jwtSessionRefresh } from "../../../middleware/jwt.middleware";
 import { VendorValidator } from "../_setup";
 import { Vendor } from "../_model";
+import EmailHandler from '../../../services/emailHandler.service';
+import { signIn } from '../../../emails/signIn.template';
 
 const signVendor = new Elysia()
     .use(jwtSessionAccess)
@@ -54,6 +56,17 @@ const signVendor = new Elysia()
                 sessionAccessJwt,
                 sessionRefreshJwt
             )
+
+            // Send login alert email if vendor enabled
+            try {
+                if (vendor.loginAlerts && vendor.emailNotifications) {
+                    const template = await signIn({ name: checkVendor.fullName });
+                    const to = checkVendor.email;
+                    if (to) EmailHandler.send(to, `New sign in to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
+                }
+            } catch (e) {
+                // ignore
+            }
 
             return SuccessHandler(
                 set,

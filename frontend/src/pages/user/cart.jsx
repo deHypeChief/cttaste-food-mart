@@ -137,6 +137,7 @@ export default function Cart() {
                             banner={v.banner}
                             location={v.location}
                             id={v._id}
+                            isCurrentlyOpen={v.isCurrentlyOpen}
                         />
                     ))}
                 </div>

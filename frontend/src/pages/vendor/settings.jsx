@@ -61,7 +61,7 @@ export default function Settings() {
     const tabs = [
         { id: "profile", label: "Restaurant Profile", icon: "majesticons:user-line" },
         { id: "business", label: "Business Settings", icon: "majesticons:building-line" },
-        { id: "operations", label: "Operations", icon: "majesticons:settings-line" },
+        // { id: "operations", label: "Operations", icon: "majesticons:settings-line" },
         { id: "notifications", label: "Notifications", icon: "majesticons:bell-line" },
         { id: "security", label: "Security", icon: "majesticons:lock-line" },
         // Payment tab hidden for now

@@ -91,8 +91,13 @@ export default function VendorInfo() {
                     const v = res?.data?.vendor;
                     if (!v?._id) throw new Error('Vendor not found');
                     setVendor(v);
-                    const menuRes = await vendorService.getPublicMenu(v._id);
-                    setMenu(menuRes?.data?.items || []);
+                    // Only fetch menu if vendor is currently open
+                    if (v.isCurrentlyOpen) {
+                        const menuRes = await vendorService.getPublicMenu(v._id);
+                        setMenu(menuRes?.data?.items || []);
+                    } else {
+                        setMenu([]);
+                    }
                     fetchComments(v._id);
                     return;
                 }
@@ -101,8 +106,10 @@ export default function VendorInfo() {
                 const found = res?.data?.items?.[0];
                 if (!found) { setError('Vendor not found'); return; }
                 setVendor(found);
-                const menuRes = await vendorService.getPublicMenu(found._id);
-                setMenu(menuRes?.data?.items || []);
+                if (found.isCurrentlyOpen) {
+                    const menuRes = await vendorService.getPublicMenu(found._id);
+                    setMenu(menuRes?.data?.items || []);
+                } else setMenu([]);
                 fetchComments(found._id);
             } catch (e) {
                 setError(e.message || 'Failed to load vendor');
@@ -307,6 +314,7 @@ export default function VendorInfo() {
                             onQuantityChange={(newQty) => updateQuantity(idx, newQty)}
                             onAdd={() => addItem({ vendorId: vendor?._id, menuItemId: m._id, name: m.name, price: m.price, image: m.image, quantity: 1 })}
                             onUpdate={(newQty) => updateQty(m._id, newQty)}
+                            vendorOpen={vendor?.isCurrentlyOpen}
                         />
                     ))}
                 </div>

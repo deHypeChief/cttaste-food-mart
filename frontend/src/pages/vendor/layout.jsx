@@ -59,7 +59,7 @@ export default function VendorLayout() {
     ];
 
     const footerLinks = [
-        { to: '/vendor/support', active: '/support', icon: 'mynaui:support', label: 'Get Support' },
+        { to: `https://wa.me/2349013231763?text=Hey%20i%20am%20${vendor.session.fullName}%20i%20need%20help%20with%3F`, active: '/support', icon: 'mynaui:support', label: 'Get Support' },
         { to: '/vendor/settings', active: '/settings', icon: 'lsicon:setting-outline', label: 'Setting' },
     ];
 

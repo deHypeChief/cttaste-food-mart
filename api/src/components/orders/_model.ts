@@ -11,6 +11,9 @@ export interface IOrderItem {
 export interface IOrder extends mongoose.Document {
   orderNumber: string;
   vendorId: mongoose.Types.ObjectId;
+  vendorPublicKey?: string;
+  vendorName?: string;
+  vendorAvatar?: string;
   userId: mongoose.Types.ObjectId;
   items: IOrderItem[];
   total: number;
@@ -36,6 +39,9 @@ const orderSchema = new mongoose.Schema<IOrder>({
   items: { type: [orderItemSchema], required: true },
   total: { type: Number, required: true },
   address: { type: String, required: true },
+  vendorName: { type: String },
+  vendorAvatar: { type: String },
+  vendorPublicKey: { type: String, default: '' },
   status: { type: String, enum: ['Pending', 'Accepted', 'Preparing', 'Ready', 'Completed', 'Cancelled'], default: 'Pending', index: true },
   notes: { type: String },
 }, { timestamps: true });

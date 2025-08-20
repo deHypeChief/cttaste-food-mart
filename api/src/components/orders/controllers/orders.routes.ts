@@ -4,6 +4,9 @@ import ErrorHandler from '../../../services/errorHandler.service';
 import SuccessHandler from '../../../services/successHandler.service';
 import { Order } from '../_model';
 import { Vendor } from '../../vendors/_model';
+import EmailHandler from '../../../services/emailHandler.service';
+import { orderNotification } from '../../../emails/orderNotification.template';
+import { signIn } from '../../../emails/signIn.template';
 import mongoose from 'mongoose';
 
 function generateOrderNumber() {
@@ -34,6 +37,37 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
   // Place an order (user) - scoped auth to this route only
   .group('', (app) => app
     .use(isSessionAuth('user'))
+    // User: list own orders
+    .get('/', async ({ set, session, query }) => {
+      try {
+        const userId = session._id;
+        const status = (query as any)?.status as string | undefined;
+        const filter: any = { userId: userId };
+        if (status) filter.status = status;
+
+        const orders = await Order.find(filter)
+          .sort({ createdAt: -1 })
+          .populate({ path: 'vendorId', select: 'restaurantName avatar' });
+
+        // Map vendor name into response for frontend convenience (prefer stored values)
+        const mapped = orders.map((o: any) => ({
+          id: o._id,
+          orderNumber: o.orderNumber,
+          vendorId: o.vendorId?._id,
+          vendorName: o.vendorName || o.vendorId?.restaurantName,
+          vendorAvatar: o.vendorAvatar || o.vendorId?.avatar,
+          items: o.items,
+          total: o.total,
+          address: o.address,
+          status: o.status,
+          createdAt: o.createdAt,
+        }));
+
+        return SuccessHandler(set, 'User orders fetched', { orders: mapped }, true);
+      } catch (error) {
+        throw ErrorHandler.ServerError(set, 'Error fetching user orders', error);
+      }
+    })
     .post('/', async ({ set, body, session }) => {
     try {
       const { vendorId, items, address, notes } = body as any;
@@ -45,7 +79,9 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
 
       const order = await Order.create({
         orderNumber: generateOrderNumber(),
-        vendorId: new mongoose.Types.ObjectId(vendorId),
+  vendorId: new mongoose.Types.ObjectId(vendorId),
+  vendorName: vendor.restaurantName,
+  vendorAvatar: vendor.avatar,
         userId: new mongoose.Types.ObjectId(session._id),
         items: items.map((i: any) => ({
           menuItemId: new mongoose.Types.ObjectId(i.menuItemId),
@@ -59,6 +95,38 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
         status: 'Pending',
         notes,
       });
+
+      // Send vendor email if vendor allows order notifications and email notifications
+      try {
+  if (vendor.orderNotifications && vendor.emailNotifications) {
+          const sessionClient = await (await import('../../auth/_model')).SessionClient.findById(vendor.sessionClientId);
+          const vendorEmail = sessionClient?.email || null;
+          if (vendorEmail) {
+            const template = await orderNotification({
+              orderNumber: order.orderNumber,
+              vendorName: vendor.restaurantName,
+              customerName: (session && session.fullName) || 'Customer',
+              total: order.total,
+              items: order.items.map((it: any) => ({ name: it.name, quantity: it.quantity, price: it.price }))
+            });
+            EmailHandler.send(vendorEmail, `New order ${order.orderNumber}`, template).catch(() => { /* swallow email errors */ });
+          }
+        }
+
+        // Also notify customer by email if they exist and email notifications are expected (assumption: session email)
+        try {
+          const customerSession = await (await import('../../auth/_model')).SessionClient.findById(session._id);
+          const customerEmail = customerSession?.email;
+          if (customerEmail) {
+            const templateCust = await signIn({ name: customerSession.fullName });
+            EmailHandler.send(customerEmail, `Order Received ${order.orderNumber}`, templateCust).catch(() => {});
+          }
+        } catch (e) {
+          // ignore customer email errors
+        }
+      } catch (e) {
+        // ignore notification errors to avoid breaking order creation
+      }
 
       return SuccessHandler(set, 'Order placed successfully', { order }, true);
     } catch (error) {
@@ -119,5 +187,33 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
       }
     })
   );
+
+// Public order endpoints (quick preview links used in WhatsApp messages)
+const publicOrders = new Elysia({ prefix: '/orders/public' })
+  .get('/:id', async ({ set, params }) => {
+    try {
+      const { id } = params as any;
+      const order = await Order.findById(id).populate({ path: 'vendorId', select: 'restaurantName avatar phoneNumber' });
+      if (!order) return ErrorHandler.ValidationError(set, 'Order not found');
+      return SuccessHandler(set, 'Order preview', { order }, true);
+    } catch (error) {
+      throw ErrorHandler.ServerError(set, 'Error fetching public order', error);
+    }
+  })
+  .put('/:id/status', async ({ set, params, body }) => {
+    try {
+      const { id } = params as any;
+      const { status } = body as any;
+      const allowed = ['Pending', 'Accepted', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
+      if (!allowed.includes(status)) return ErrorHandler.ValidationError(set, 'Invalid status');
+      const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+      if (!order) return ErrorHandler.ValidationError(set, 'Order not found');
+      return SuccessHandler(set, 'Order status updated', { order }, true);
+    } catch (error) {
+      throw ErrorHandler.ServerError(set, 'Error updating public order status', error);
+    }
+  });
+
+export { publicOrders };
 
 export default ordersRoutes;
