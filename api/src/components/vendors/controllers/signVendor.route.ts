@@ -62,7 +62,8 @@ const signVendor = new Elysia()
                 if (vendor.loginAlerts && vendor.emailNotifications) {
                     const template = await signIn({ name: checkVendor.fullName });
                     const to = checkVendor.email;
-                    if (to) EmailHandler.send(to, `New sign in to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
+                    // Use same welcome content/subject as registration
+                    if (to) EmailHandler.send(to, `Login Request Made`, template).catch(() => {});
                 }
             } catch (e) {
                 // ignore

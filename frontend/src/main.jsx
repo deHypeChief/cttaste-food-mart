@@ -8,6 +8,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Login from './pages/auth/login'
 import AuthLayout from './pages/auth/layout'
 import Register from './pages/auth/register'
+import ConfirmSuccess from './pages/auth/confirm-success'
+import Confirm from './pages/auth/confirm'
 import VendorInfo from './pages/user/vendorPage'
 import VOrder from './pages/public/vorder'
 import Cart from './pages/user/cart'
@@ -49,6 +51,9 @@ createRoot(document.getElementById('root')).render(
 					{/* Public vendor order preview route used by WhatsApp quick links */}
 					<Route path="/vorder/:id" element={<VOrder />} />
 
+					{/* Root-level confirm route (unprotected) for email links */}
+					<Route path="/confirm" element={<Confirm />} />
+
 					<Route path="/user" element={
 						<ProtectedUserRoute>
 							<UserProfileLayout />
@@ -83,6 +88,8 @@ createRoot(document.getElementById('root')).render(
 					}>
 						<Route path="/auth/login" element={<Login />} />
 						<Route path="/auth/register" element={<Register />} />
+						<Route path="/auth/confirm" element={<Confirm />} />
+						<Route path="/auth/confirmed" element={<ConfirmSuccess />} />
 					</Route>
 					
 					<Route path="/debug" element={<ApiDebugger />} />

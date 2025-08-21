@@ -6,8 +6,25 @@ import SuccessHandler from "../../../services/successHandler.service";
 import { VendorValidator } from "../_setup";
 import { NotifyUser } from "../../notification/_model";
 import NotificationHandler from "../../../services/notificationHandler.service";
-import EmailHandler from '../../../services/emailHandler.service';
-import { signIn } from '../../../emails/signIn.template';
+import { generateOTP } from '../../../services/otpHandler.service';
+import { PendingRegistration } from '../../auth/_model';
+
+// Portable UUID/token generator: prefer Bun.crypto.randomUUID -> globalThis.crypto.randomUUID -> fallback
+const generateToken = () => {
+    try {
+        if (typeof Bun !== 'undefined' && (Bun as any).crypto && typeof (Bun as any).crypto.randomUUID === 'function') {
+            return (Bun as any).crypto.randomUUID();
+        }
+    } catch (e) {}
+
+    try {
+        if (typeof (globalThis as any).crypto?.randomUUID === 'function') {
+            return (globalThis as any).crypto.randomUUID();
+        }
+    } catch (e) {}
+
+    return `uid-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+}
 
 const registerVendor = new Elysia()
     .post("/register", async ({ set, body }) => {
@@ -31,65 +48,24 @@ const registerVendor = new Elysia()
                 return ErrorHandler.ValidationError(set, "The email provided is already in use.")
             }
 
-            const newClient = await SessionClient.create({
+            const token = Bun.env.NODE_ENV === 'test' ? `test-${Date.now()}` : generateToken();
+            const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
+            const pendingRegistration = await PendingRegistration.create({
                 email,
-                password,
-                fullName,
-                role: ["vendor"],
-                profile: profile || ""
-            })
-
-            if (!newClient) {
-                return ErrorHandler.ServerError(
-                    set,
-                    "Error while creating vendor session"
-                );
-            }
-
-            const newVendor = await Vendor.create({
-                sessionClientId: newClient._id,
-                restaurantName,
-                phoneNumber,
-                location,
-                address,
-                vendorType,
-                description: description || "",
-                cuisine: cuisine || "",
-                isApproved: false,
-                isActive: true
-            })
-
-            if (!newVendor) {
-                await SessionClient.findByIdAndDelete(newClient._id)
-                return ErrorHandler.ServerError(
-                    set,
-                    "Error while creating vendor profile"
-                );
-            }
-
-            // Send welcome notification
-            NotificationHandler.send(
-                newClient._id,
-                "notRead",
-                `Hey ${newClient.fullName}, welcome to CTtaste! Your restaurant "${restaurantName}" is pending approval.`,
-                "Welcome to CTtaste! 🎉",
-            );
-
-            // Send welcome email if vendor allows email notifications (default true)
-            try {
-                const template = await signIn({ name: newClient.fullName });
-                if (newVendor.emailNotifications) {
-                    await EmailHandler.send(newClient.email, `Welcome to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
-                }
-            } catch (e) {
-                // ignore email errors
-            }
+                payload: { email, password, fullName, restaurantName, phoneNumber, location, address, vendorType, profile, description, cuisine },
+                role: 'vendor',
+                token,
+                expiresAt
+            });
+            // Generate and send OTP immediately
+            try { await generateOTP(pendingRegistration._id, 'email_verification'); } catch {}
 
             return SuccessHandler(
                 set,
-                "Vendor account created successfully",
+                "Registration initiated. Enter the OTP sent to your email to complete vendor account setup.",
                 {
-                    vendor: newVendor,
+                    pendingRegistrationId: pendingRegistration._id,
+                    email
                 },
                 true
             )

@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/auth/logout',
     GENERATE_OTP: '/auth/otp/generate/email',
     VERIFY_OTP: '/auth/otp/verify/email',
+    RESEND_CONFIRM: '/auth/resend-confirm',
 
     // Menu endpoints (vendor)
     MENU_LIST: '/menu',

@@ -74,15 +74,22 @@ export default function Navbar() {
     // Check if customer is logged in
     const isCustomerLoggedIn = userType === 'customer' && user;
 
+    const isUserRoute = location.pathname.startsWith('/user');
     return (
         <>
             <nav className="bg-white fixed top-0 w-screen z-20">
                 <div className="px-5 md:px-20 flex justify-between items-center py-2">
                     <div>
                         <div className="flex items-center gap-10">
-                            <Link to="/">
-                                <img src="/Logo.svg" alt="logo" className="size-10 md:size-16" />
-                            </Link>
+                            {isUserRoute ? (
+                                <button onClick={() => navigate('/')} title="Home" className="focus:outline-none">
+                                    <Icon icon="mdi:home-outline" className="size-6 md:size-8 text-primary" />
+                                </button>
+                            ) : (
+                                <Link to="/">
+                                    <img src="/Logo.svg" alt="logo" className="size-10 md:size-16" />
+                                </Link>
+                            )}
                             <div className="hidden dmt-1 md:flex">
                                 <Input
                                     type="text"

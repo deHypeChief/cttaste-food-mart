@@ -118,3 +118,8 @@ export const authService = {
         }
     },
 };
+
+// Resend confirmation helper (both user and vendor can use)
+export const resendConfirmService = async (email) => {
+    return apiClient.post(API_ENDPOINTS.RESEND_CONFIRM, { email });
+};

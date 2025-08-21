@@ -3,37 +3,42 @@ import Button from "../../components/button";
 import { Input } from "../../components/form";
 import { Form, FormField } from "../../components/form";
 import { Link, useNavigate } from "react-router-dom";
-import { userAuthService, vendorAuthService } from "../../api/auth.js";
-import { useAuth } from "../../hooks/useAuth.js";
+import { userAuthService, vendorAuthService, authService } from "../../api/auth.js";
+// ...existing code...
 
 export default function Register() {
     const NIGERIAN_UNIS = [
-        { value: "University of Abuja (UNIABUJA)", label: "University of Abuja (UNIABUJA)" },
-        { value: "University of Lagos (UNILAG)", label: "University of Lagos (UNILAG)" },
-        { value: "University of Ibadan (UI)", label: "University of Ibadan (UI)" },
-        { value: "Obafemi Awolowo University (OAU)", label: "Obafemi Awolowo University (OAU)" },
-        { value: "Ahmadu Bello University (ABU)", label: "Ahmadu Bello University (ABU)" },
-        { value: "University of Nigeria, Nsukka (UNN)", label: "University of Nigeria, Nsukka (UNN)" },
-        { value: "University of Benin (UNIBEN)", label: "University of Benin (UNIBEN)" },
-        { value: "University of Port Harcourt (UNIPORT)", label: "University of Port Harcourt (UNIPORT)" },
-        { value: "University of Ilorin (UNILORIN)", label: "University of Ilorin (UNILORIN)" },
-        { value: "Lagos State University (LASU)", label: "Lagos State University (LASU)" },
-        { value: "Covenant University (CU)", label: "Covenant University (CU)" },
-        { value: "FUTA", label: "Federal University of Technology Akure (FUTA)" },
-        { value: "FUTMINNA", label: "Federal University of Technology Minna (FUTMINNA)" },
-        { value: "Bayero University Kano (BUK)", label: "Bayero University Kano (BUK)" },
-        { value: "University of Calabar (UNICAL)", label: "University of Calabar (UNICAL)" },
-        { value: "University of Uyo (UNIUYO)", label: "University of Uyo (UNIUYO)" },
+        // { value: "University of Abuja (UNIABUJA)", label: "University of Abuja (UNIABUJA)" },
+        // { value: "University of Lagos (UNILAG)", label: "University of Lagos (UNILAG)" },
+        // { value: "University of Ibadan (UI)", label: "University of Ibadan (UI)" },
+        // { value: "Obafemi Awolowo University (OAU)", label: "Obafemi Awolowo University (OAU)" },
+        // { value: "Ahmadu Bello University (ABU)", label: "Ahmadu Bello University (ABU)" },
+        // { value: "University of Nigeria, Nsukka (UNN)", label: "University of Nigeria, Nsukka (UNN)" },
+        // { value: "University of Benin (UNIBEN)", label: "University of Benin (UNIBEN)" },
+        // { value: "University of Port Harcourt (UNIPORT)", label: "University of Port Harcourt (UNIPORT)" },
+        // { value: "University of Ilorin (UNILORIN)", label: "University of Ilorin (UNILORIN)" },
+        // { value: "Lagos State University (LASU)", label: "Lagos State University (LASU)" },
+        // { value: "Covenant University (CU)", label: "Covenant University (CU)" },
+        // { value: "FUTA", label: "Federal University of Technology Akure (FUTA)" },
+        // { value: "FUTMINNA", label: "Federal University of Technology Minna (FUTMINNA)" },
+        // { value: "Bayero University Kano (BUK)", label: "Bayero University Kano (BUK)" },
+        // { value: "University of Calabar (UNICAL)", label: "University of Calabar (UNICAL)" },
+        // { value: "University of Uyo (UNIUYO)", label: "University of Uyo (UNIUYO)" },
         { value: "Nnamdi Azikiwe University (UNIZIK)", label: "Nnamdi Azikiwe University (UNIZIK)" },
-        { value: "Rivers State University (RSU)", label: "Rivers State University (RSU)" },
-        { value: "University of Jos (UNIJOS)", label: "University of Jos (UNIJOS)" },
+        // { value: "Rivers State University (RSU)", label: "Rivers State University (RSU)" },
+        // { value: "University of Jos (UNIJOS)", label: "University of Jos (UNIJOS)" },
     ];
     const [activeType, setActiveType] = useState("vendor");
     const [step, setStep] = useState(1); // 1, 2, 3
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    const { setUser, setVendor, setUserType } = useAuth();
-    const navigate = useNavigate();
+    const [pendingEmail, setPendingEmail] = useState(null);
+    const [pendingId, setPendingId] = useState(null);
+    const [otp, setOtp] = useState('');
+    const [otpError, setOtpError] = useState('');
+    const [resendCountdown, setResendCountdown] = useState(0);
+    const [verifyingOtp, setVerifyingOtp] = useState(false);
+    // no immediate auth set on registration; account is created after email confirmation
     const [customerForm, setCustomerForm] = useState({
         fullName: "",
         phone: "",
@@ -61,6 +66,7 @@ export default function Register() {
         }
     }, []);
 
+    const navigate = useNavigate();
     const currentForm = activeType === "customer" ? customerForm : vendorForm;
 
     const validateStep = (type, stepNum, data) => {
@@ -137,11 +143,11 @@ export default function Register() {
                     };
                     
                     response = await userAuthService.register(userData);
-                    
-                    if (response.success) {
-                        setUser(response.data.user);
-                        setUserType('customer');
-                        navigate('/user/dashboard');
+                    if (response?.success) {
+                        const pid = response?.data?.pendingRegistrationId;
+                        setPendingEmail(userData.email);
+                        setPendingId(pid);
+                        if (!pid) console.warn('Missing pendingRegistrationId in user registration response', response);
                     }
                 } else {
                     // Map frontend form to backend expected format
@@ -161,11 +167,11 @@ export default function Register() {
                     };
                     
                     response = await vendorAuthService.register(vendorData);
-                    
-                    if (response.success) {
-                        setVendor(response.data.vendor);
-                        setUserType('vendor');
-                        navigate('/vendor/dashboard');
+                    if (response?.success) {
+                        const pid = response?.data?.pendingRegistrationId;
+                        setPendingEmail(vendorData.email);
+                        setPendingId(pid);
+                        if (!pid) console.warn('Missing pendingRegistrationId in vendor registration response', response);
                     }
                 }
                 
@@ -183,6 +189,72 @@ export default function Register() {
     useEffect(() => {
         setErrors({});
     }, [step, activeType]);
+
+    if (pendingEmail) {
+        return (
+            <div className="mx-5 md:mx-20 md:ml-28 w-screen md:w-auto">
+                <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow text-center">
+                    <h2 className="text-2xl font-semibold">Enter the verification code</h2>
+                    <p className="mt-3">We sent a one-time verification code (OTP) to <strong>{pendingEmail}</strong>. Enter it below to complete account setup.</p>
+                    <div className="mt-4">
+                        <input value={otp} onChange={(e) => setOtp(e.target.value)} className="w-full p-2 border rounded text-center" placeholder="Enter 6-digit code" />
+                        {otpError && <p className="text-red-600 text-sm mt-2">{otpError}</p>}
+                    </div>
+                    <div className="mt-6 flex gap-3 justify-center">
+                        <Button onClick={async () => {
+                            if (!pendingId) {
+                                alert('Missing pending registration id.');
+                                return;
+                            }
+                            if (!otp || otp.length < 4) return setOtpError('Enter the OTP sent to your email');
+                            setVerifyingOtp(true);
+                            setOtpError('');
+                            try {
+                                const res = await authService.verifyOTP(pendingId, otp);
+                                if (res?.success) {
+                                    const typeParam = activeType === 'vendor' ? 'vendor' : 'customer';
+                                    const payloadRedirect = res?.redirect || res?.data?.redirect;
+                                    const redirect = payloadRedirect || `/auth/login?verified=1&type=${typeParam}`;
+                                    if (/^https?:\/\//i.test(redirect)) {
+                                        // Absolute URL: force full redirect to avoid React Router path concatenation
+                                        window.location.replace(redirect);
+                                    } else {
+                                        navigate(redirect, { replace: true });
+                                    }
+                                } else {
+                                    setOtpError('Invalid OTP.');
+                                }
+                            } catch (e) {
+                                setOtpError(e.message || 'Failed to verify OTP');
+                            } finally {
+                                setVerifyingOtp(false);
+                            }
+                        }} loading={verifyingOtp}>Verify code</Button>
+
+                        <Button onClick={async () => {
+                            if (!pendingId) { alert('Missing pending ID'); return; }
+                            if (resendCountdown > 0) return;
+                            try {
+                                await authService.generateOTP(pendingId);
+                                alert('OTP resent');
+                                setResendCountdown(60);
+                                const tick = setInterval(() => {
+                                    setResendCountdown(c => {
+                                        if (c <= 1) { clearInterval(tick); return 0; }
+                                        return c - 1;
+                                    });
+                                }, 1000);
+                            } catch (e) {
+                                alert(e.message || 'Failed to resend OTP');
+                            }
+                        }} disabled={resendCountdown>0}>{resendCountdown>0 ? `Resend in ${resendCountdown}s` : 'Resend code'}</Button>
+
+                        <Button variant="outline" onClick={() => { setPendingEmail(null); setPendingId(null); setStep(1); }}>Back</Button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <>

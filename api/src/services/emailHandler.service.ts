@@ -10,24 +10,26 @@ class EmailHandler {
             subject,
             html: template,
         };
-
-        await mailConfig.sendMail(mailOptions, (error, info) => {
-            const spinner = ora({ text: 'Sending mail...', color: 'blue' }).start();
-            if (error) {
-                // Stop the spinner and show an error message with color
-                spinner.fail(
-                    chalk.bold.redBright('❌ Error sending mail: ') +
-                    chalk.whiteBright(`Error: ${error.message}`) +
-                    chalk.dim(` | Code: ${((error as any).code ?? 'Unknown')}`)
-                );
-            }
-
-            // Stop the spinner and show a success message with color
+        const spinner = ora({ text: 'Sending mail...', color: 'blue' }).start();
+        try {
+            // Use Promise API
+            const info = await mailConfig.sendMail(mailOptions);
             spinner.succeed(
                 chalk.bold.greenBright('✅ Email Sent') +
-                chalk.dim(' | Reciver : ' + to)  //update with env
+                chalk.dim(' | Receiver: ' + to)
             );
-        });
+            console.log('Mail info:', info);
+            return info;
+        } catch (error) {
+            spinner.fail(
+                chalk.bold.redBright('❌ Error sending mail: ') +
+                chalk.whiteBright(`Error: ${(error as any)?.message || error}`) +
+                chalk.dim(` | Code: ${((error as any).code ?? 'Unknown')}`)
+            );
+            console.error('Email send error details:', error);
+            // rethrow so callers can handle failure
+            throw error;
+        }
     }
 
 

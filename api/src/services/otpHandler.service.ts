@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { OTP, SessionClient } from "../components/auth/_model";
+import { OTP, SessionClient, PendingRegistration } from "../components/auth/_model";
 import EmailHandler from "./emailHandler.service";
 import { verifyOtpEmail } from "../emails/verifyEmailOtp.template";
 
@@ -19,6 +19,7 @@ export async function generateOTP(
 ) {
     const canSend = await canSendOTP(sessionId, purpose)
     if (!canSend) {
+        console.warn('[OTP] Rate limited: sessionId/pendingId=%s purpose=%s (wait 60s)', sessionId.toString(), purpose);
         return false
     }
 
@@ -31,17 +32,33 @@ export async function generateOTP(
         { $set: { used: true } }
     );
 
+    // Try to find a live session client first; if not found, try pending registration
     const client = await SessionClient.findById(sessionId)
+    let emailToSend = null;
+    let nameToUse = '';
 
-    if (!client) {
+    if (client) {
+        emailToSend = client.email;
+        nameToUse = client.fullName;
+    } else {
+        const pending = await PendingRegistration.findById(sessionId);
+        if (pending) {
+            emailToSend = pending.email;
+            nameToUse = pending.payload?.fullName || '';
+        }
+    }
+
+    if (!emailToSend) {
+        console.error('[OTP] Could not resolve email for id=%s (neither SessionClient nor PendingRegistration)', sessionId.toString());
         throw new Error("Email not found")
     }
 
-    EmailHandler.send(
-        client.email,
+    console.log('[OTP] Sending OTP email to %s (purpose=%s, pending=%s)', emailToSend, purpose, !client);
+    await EmailHandler.send(
+        emailToSend,
         "Verify Your Email",
         await verifyOtpEmail({
-            name: client.fullName,
+            name: nameToUse,
             otp: token
         })
     )
@@ -52,6 +69,8 @@ export async function generateOTP(
         token,
         expiresAt
     })
+
+    console.log('[OTP] Created OTP record (maskedToken=******, expiresAt=%s) for id=%s', expiresAt.toISOString(), sessionId.toString());
 
     return {
         token,

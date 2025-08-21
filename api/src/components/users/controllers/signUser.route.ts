@@ -53,7 +53,8 @@ const signUser = new Elysia()
             // Send login alert email to user (assumption: users want login alerts)
             try {
                 const template = await signIn({ name: checkUser.fullName });
-                if (checkUser.email) EmailHandler.send(checkUser.email, `New sign in to ${Bun.env.PLATFORM_NAME}`, template).catch(() => {});
+                // Use same subject as registration welcome email
+                if (checkUser.email) EmailHandler.send(checkUser.email, `Login Request Made`, template).catch(() => {});
             } catch (e) {}
             return SuccessHandler(
                 set,

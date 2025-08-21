@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext } from 'react';
 
 const ToastContext = createContext();
@@ -9,5 +10,4 @@ export const useToast = () => {
     }
     return context;
 };
-
-export { ToastContext };
+export default ToastContext;

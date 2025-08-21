@@ -99,9 +99,9 @@ export default function Dashboard() {
             {/* Approval Banner - Only show if vendor is not approved */}
             {vendor?.vendor && !vendor.vendor.isApproved && (
                 <div className="bg-white p-7 py-5 rounded-xl flex justify-between items-center text-sm">
-                    <p>Get your restaurant approved to start selling on CTtaste.</p>
+                    <p>Get your restaurant approved to start selling on Now Noow.</p>
                     <a 
-                        href="https://wa.me/2349013231763?text=I%20would%20like%20to%20request%20approval%20for%20my%20restaurant."
+                        href={`https://wa.me/2349013231763?text=I%20would%20like%20to%20request%20approval%20for%20my%20restaurant%20:${vendor?.vendor?.restaurantName || 'vendor'}.`}
                         className="text-orange-500 cursor-pointer hover:underline"
                     >
                         Get Approval ›

@@ -184,7 +184,7 @@ export default function VendorOrders() {
 						<p>Loading...</p>
 					)}
 					<DialogFooter className="mt-6">
-						<div className="flex gap-2 w-full justify-end">
+						<div className="flex flex-wrap gap-2 w-fit justify-end">
 							{['Pending','Accepted','Preparing','Ready','Completed','Cancelled'].map(s => (
 								<Button key={s} variant={detail?.status === s ? 'default' : 'outline'} disabled={updating} onClick={() => updateStatus(s)}>
 									{s}

@@ -146,3 +146,25 @@ sessionClientSchema.methods.comparePassword = async function (inputPassword: str
 export const OTP = mongoose.model<IOTP>('OTP', OTPSchema)
 export const Session = mongoose.model<ISession>('Session', sessionSchema);
 export const SessionClient = mongoose.model<ISessionClient>('SessionClient', sessionClientSchema);
+
+// Pending registration for email confirmation flow
+interface IPendingRegistration extends Document {
+    email: string;
+    payload: any;
+    role: 'user' | 'vendor';
+    token: string;
+    expiresAt: Date;
+}
+
+const PendingRegistrationSchema = new mongoose.Schema<IPendingRegistration>({
+    email: { type: String, required: true },
+    payload: { type: mongoose.Schema.Types.Mixed, required: true },
+    role: { type: String, enum: ['user', 'vendor'], required: true },
+    token: { type: String, required: true, unique: true },
+    expiresAt: { type: Date, required: true }
+}, { timestamps: true });
+
+// expire after TTL
+PendingRegistrationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+export const PendingRegistration = mongoose.model<IPendingRegistration>('PendingRegistration', PendingRegistrationSchema);
