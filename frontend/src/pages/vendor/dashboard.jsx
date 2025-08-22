@@ -80,7 +80,7 @@ export default function Dashboard() {
         const name = vendor?.vendor?.restaurantName || 'vendor';
         const slug = String(name).toLowerCase().replace(/\s+/g, '');
         const id = vendor?.vendor?._id;
-        const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://cttaste.com';
+        const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://nownoow.io';
         const path = `/vendor/${slug}`;
         return id ? `${origin}${path}?id=${id}` : `${origin}${path}`;
     }, [vendor]);
@@ -124,7 +124,7 @@ export default function Dashboard() {
                 <div className="bg-green-50 border border-green-200 p-7 py-5 rounded-xl flex justify-between items-center text-sm">
                     <div className="flex items-center gap-3">
                         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <p className="text-green-700">Your restaurant is approved and ready to sell on CTtaste!</p>
+                        <p className="text-green-700">Your restaurant is approved and ready to sell on NowNoow!</p>
                     </div>
                 </div>
             )}
