@@ -45,7 +45,7 @@ export default function Footer() {
                 </div>
 
                 <div className="md:flex space-y-5 md:space-y-0 items-center justify-between">
-                    <p>© {new Date().getFullYear()} NowNoow. A product of CTHostel.</p>
+                    <p>© {new Date().getFullYear()} NowNoow. A product of NowNoow.</p>
                     <div className="flex items-center gap-5">
                         <img src="./app-store.png" alt="" />
                         <img src="./play-store.png" alt="" />
