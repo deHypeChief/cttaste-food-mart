@@ -51,6 +51,8 @@ export default function Checkout() {
 
     // Delivery option
     const [deliveryOption, setDeliveryOption] = useState('pickup'); // 'pickup' | 'doorstep'
+    const [deliverySelections, setDeliverySelections] = useState({}); // { vendorId: { location: string, price: number } }
+    const [deliveryInstructions, setDeliveryInstructions] = useState('');
 
     const itemsTotal = useMemo(() => {
         return (items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
@@ -60,11 +62,23 @@ export default function Checkout() {
         if (deliveryOption !== 'doorstep') return 0;
         let fee = 0;
         for (const vid of groups.keys()) {
+            const sel = deliverySelections[vid];
+            if (sel && typeof sel.price === 'number') {
+                fee += Number(sel.price) || 0;
+                continue;
+            }
             const v = vendorsInfo[vid];
-            fee += Number(v?.deliveryFee || 0);
+            const locations = v?.deliveryLocations || [];
+            if (Array.isArray(locations) && locations.length) {
+                const prices = locations.map(l => Number(l?.price || 0)).filter(p => !isNaN(p));
+                if (prices.length) fee += Math.min(...prices);
+                else fee += Number(v?.deliveryFee || 0);
+            } else {
+                fee += Number(v?.deliveryFee || 0);
+            }
         }
         return fee;
-    }, [deliveryOption, groups, vendorsInfo]);
+    }, [deliveryOption, groups, vendorsInfo, deliverySelections]);
 
     const grandTotal = itemsTotal + deliveryFees;
 
@@ -101,9 +115,14 @@ export default function Checkout() {
                 const addr = deliveryOption === 'doorstep'
                     ? customer.address
                     : (vinfo?.address || vinfo?.location || 'Pickup at vendor');
+                const sel = deliverySelections[vendorId];
                 payloads.push({
                     vendorId,
                     address: addr,
+                    deliveryMode: deliveryOption,
+                    deliveryLocation: deliveryOption === 'doorstep' ? sel?.location : undefined,
+                    deliveryPrice: deliveryOption === 'doorstep' ? (sel ? Number(sel.price || 0) : undefined) : undefined,
+                    deliveryInstructions: deliveryOption === 'doorstep' ? (deliveryInstructions || undefined) : undefined,
                     items: vendorItems.map((it) => ({
                         menuItemId: it.menuItemId,
                         name: it.name,
@@ -164,7 +183,7 @@ export default function Checkout() {
                             console.warn('[Checkout] No valid phone for vendor', p.vendorId, 'raw:', rawPhone);
                             continue;
                         }
-                        const vendorTotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
+                        const vendorTotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0) + Number(p.deliveryPrice || 0);
                         const itemCount = (p.items || []).reduce((s, it) => s + Number(it.quantity || 0), 0);
                         let msg = '';
                         msg += `from: ${customer.name}\n`;
@@ -176,6 +195,11 @@ export default function Checkout() {
                             msg += `Oty: ${it.quantity}\n`;
                             msg += `Amt: ₦ ${Number(it.price * it.quantity).toLocaleString()}\n`;
                             msg += `\n`;
+                        }
+                        if (p.deliveryMode === 'doorstep') {
+                            if (p.deliveryLocation) msg += `Delivery Location: ${p.deliveryLocation}\n`;
+                            if (p.deliveryPrice) msg += `Delivery Fee: ₦ ${Number(p.deliveryPrice).toLocaleString()}\n`;
+                            if (p.deliveryInstructions) msg += `Instructions: ${p.deliveryInstructions}\n`;
                         }
                         if (orderId) {
                             const vorderUrl = `${host}/vorder/${orderId}`;
@@ -191,6 +215,8 @@ export default function Checkout() {
                         } catch { /* ignore */ }
                         try { localStorage.setItem('lastWaLink', wa); } catch { /* ignore */ }
                         try { navigator.clipboard?.writeText(wa).catch(() => {}); } catch { /* ignore */ }
+                        // Clear cart before redirect so user's cart is emptied
+                        try { await clear?.(); } catch (err) { console.warn('Failed to clear cart before redirect', err); }
                         // Slight delay so log flushes & DevTools can catch it
                         setTimeout(() => { window.location.assign(wa); }, 800);
                         return; // stop after scheduling redirect
@@ -324,14 +350,44 @@ export default function Checkout() {
                                 </div>
                                 {deliveryOption === 'doorstep' && Array.from(groups.keys()).map((vid) => {
                                     const v = vendorsInfo[vid];
-                                    const fee = Number(v?.deliveryFee || 0);
+                                    const sel = deliverySelections[vid];
+                                    const fee = sel ? Number(sel.price || 0) : 0;
                                     return (
-                                        <div key={vid} className="flex justify-between items-center opacity-60">
-                                            <p className="font-medium text-[1rem]">Delivery Fee: {v?.restaurantName || 'Vendor'}</p>
-                                            <p className="font-medium text-[1rem]">₦ {fee.toLocaleString()}</p>
+                                        <div key={vid} className="space-y-2">
+                                            <div className="flex justify-between items-center opacity-60">
+                                                <p className="font-medium text-[1rem]">Delivery: {v?.restaurantName || 'Vendor'}</p>
+                                                <p className="font-medium text-[1rem]">₦ {fee.toLocaleString()}</p>
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <select
+                                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    value={sel?.location || ''}
+                                                    onChange={(e) => {
+                                                        const loc = e.target.value;
+                                                        const found = (v?.deliveryLocations || []).find(dl => dl.location === loc);
+                                                        setDeliverySelections(prev => ({ ...prev, [vid]: found ? { location: found.location, price: Number(found.price || 0) } : undefined }));
+                                                    }}
+                                                >
+                                                    <option value="">Select delivery location</option>
+                                                    {(v?.deliveryLocations || []).map((dl, i) => (
+                                                        <option key={i} value={dl.location}>{dl.location} (₦ {Number(dl.price).toLocaleString()})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     );
                                 })}
+                                {deliveryOption === 'doorstep' && (
+                                    <div className="mt-4 space-y-2">
+                                        <label className="text-sm font-medium">Delivery Instructions (describe your place)</label>
+                                        <textarea
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[80px]"
+                                            placeholder="e.g., Black gate, third floor, ring the bell..."
+                                            value={deliveryInstructions}
+                                            onChange={(e) => setDeliveryInstructions(e.target.value)}
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div className="flex justify-between">
                                 <h3 className="font-semibold text-2xl">Total</h3>

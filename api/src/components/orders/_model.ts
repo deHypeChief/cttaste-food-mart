@@ -18,6 +18,10 @@ export interface IOrder extends mongoose.Document {
   items: IOrderItem[];
   total: number;
   address: string;
+  deliveryMode?: 'pickup' | 'doorstep';
+  deliveryLocation?: string; // Named location selected from vendor deliveryLocations
+  deliveryPrice?: number; // Price associated with selected delivery location
+  deliveryInstructions?: string; // User-provided description of home/location
   status: 'Pending' | 'Accepted' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled';
   notes?: string;
   createdAt: Date;
@@ -39,6 +43,10 @@ const orderSchema = new mongoose.Schema<IOrder>({
   items: { type: [orderItemSchema], required: true },
   total: { type: Number, required: true },
   address: { type: String, required: true },
+  deliveryMode: { type: String, enum: ['pickup', 'doorstep'], default: 'pickup' },
+  deliveryLocation: { type: String },
+  deliveryPrice: { type: Number, default: 0 },
+  deliveryInstructions: { type: String },
   vendorName: { type: String },
   vendorAvatar: { type: String },
   vendorPublicKey: { type: String, default: '' },

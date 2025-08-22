@@ -32,9 +32,8 @@ export default function Settings() {
     });
 
     const [businessSettings, setBusinessSettings] = useState({
-        minimumOrder: "",
-        deliveryFee: "",
         preparationTime: "",
+        deliveryLocations: [], // { location: string, price: number }
     });
 
     const [notifications, setNotifications] = useState({
@@ -87,9 +86,8 @@ export default function Settings() {
                     isActive: v.isActive !== undefined ? v.isActive : true,
                 }));
                 setBusinessSettings({
-                    minimumOrder: String(v.minimumOrder ?? ""),
-                    deliveryFee: String(v.deliveryFee ?? ""),
                     preparationTime: String(v.preparationTime ?? ""),
+                    deliveryLocations: v.deliveryLocations || [],
                 });
                 setNotifications({
                     orderNotifications: v.orderNotifications !== undefined ? v.orderNotifications : true,
@@ -112,6 +110,21 @@ export default function Settings() {
 
     const handleBusinessUpdate = (field, value) => {
         setBusinessSettings(prev => ({ ...prev, [field]: value }));
+    };
+
+    const [newLocation, setNewLocation] = useState({ location: '', price: '' });
+
+    const addDeliveryLocation = () => {
+        if (!newLocation.location || !newLocation.price) {
+            toast.error('Both location and price are required');
+            return;
+        }
+        setBusinessSettings(prev => ({ ...prev, deliveryLocations: [...(prev.deliveryLocations || []), { location: newLocation.location, price: Number(newLocation.price) }] }));
+        setNewLocation({ location: '', price: '' });
+    };
+
+    const removeDeliveryLocation = (idx) => {
+        setBusinessSettings(prev => ({ ...prev, deliveryLocations: (prev.deliveryLocations || []).filter((_, i) => i !== idx) }));
     };
 
     const handleNotificationToggle = (field) => {
@@ -175,11 +188,18 @@ export default function Settings() {
         try {
             setLoading(true); setError(""); setSuccess("");
             const payload = {
-                minimumOrder: businessSettings.minimumOrder ? Number(businessSettings.minimumOrder) : undefined,
-                deliveryFee: businessSettings.deliveryFee ? Number(businessSettings.deliveryFee) : undefined,
                 preparationTime: businessSettings.preparationTime ? Number(businessSettings.preparationTime) : undefined,
+                deliveryLocations: businessSettings.deliveryLocations || [],
             };
-            await vendorAuthService.updateBusinessSettings(payload);
+            const res = await vendorAuthService.updateBusinessSettings(payload);
+            // API Client returns response.data; SuccessHandler wraps vendor in data.vendor
+            const updatedVendor = res?.data?.vendor || res?.vendor || res?.vendor || (res && res.vendor) || null;
+            if (updatedVendor) {
+                setBusinessSettings({
+                    preparationTime: String(updatedVendor.preparationTime ?? ""),
+                    deliveryLocations: updatedVendor.deliveryLocations || [],
+                });
+            }
             setSuccess('Business settings updated');
         } catch (e) { setError(e.message || 'Failed to update business settings'); }
         finally { setLoading(false); }
@@ -197,6 +217,11 @@ export default function Settings() {
 
     const uploadBanner = async (file) => {
         if (!file) return;
+        const MAX_BANNER = 2 * 1024 * 1024; // 2MB
+        if (file.size > MAX_BANNER) {
+            toast.error('Banner image exceeds 2MB limit', 'Upload failed');
+            return;
+        }
         try {
             setLoading(true); setError(""); setSuccess("");
             const res = await vendorService.uploadBanner(file);
@@ -280,6 +305,7 @@ export default function Settings() {
                                     <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
                                     <Button variant="outlineFade" size="sm" className="absolute bottom-2 right-2" onClick={() => bannerInputRef.current?.click()}>Upload Banner</Button>
                                 </div>
+                                <p className="text-xs text-gray-500 mt-1">PNG or JPG up to 2MB</p>
                                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div>
                                         <h3 className="font-medium text-gray-900">Restaurant Availability</h3>
@@ -356,23 +382,29 @@ export default function Settings() {
                 <div className="space-y-6">
                     <LargeCard title="Business Settings" icon="majesticons:building-line">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormField label="Minimum Order Amount (₦)">
-                                <Input
-                                    type="number"
-                                    value={businessSettings.minimumOrder}
-                                    onChange={(e) => handleBusinessUpdate("minimumOrder", e.target.value)}
-                                    placeholder="5000"
-                                />
-                            </FormField>
+                            <div className="md:col-span-2">
+                                <h4 className="font-medium mb-2">Delivery Locations</h4>
+                                <p className="text-sm text-gray-600 mb-3">Add delivery locations and set the delivery price for each.</p>
+                                <div className="space-y-2">
+                                    {(businessSettings.deliveryLocations || []).map((dl, idx) => (
+                                        <div key={idx} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded">
+                                            <div>
+                                                <div className="font-medium">{dl.location}</div>
+                                                <div className="text-sm text-gray-600">₦ {Number(dl.price).toLocaleString()}</div>
+                                            </div>
+                                            <div>
+                                                <Button variant="outline" size="sm" onClick={() => removeDeliveryLocation(idx)}>Remove</Button>
+                                            </div>
+                                        </div>
+                                    ))}
 
-                            <FormField label="Delivery Fee (₦)">
-                                <Input
-                                    type="number"
-                                    value={businessSettings.deliveryFee}
-                                    onChange={(e) => handleBusinessUpdate("deliveryFee", e.target.value)}
-                                    placeholder="1500"
-                                />
-                            </FormField>
+                                    <div className="flex gap-2 items-center">
+                                        <Input placeholder="Location (e.g., Lekki Phase 1)" value={newLocation.location} onChange={(e) => setNewLocation(n => ({...n, location: e.target.value}))} />
+                                        <Input placeholder="Price" type="number" value={newLocation.price} onChange={(e) => setNewLocation(n => ({...n, price: e.target.value}))} />
+                                        <Button onClick={addDeliveryLocation}>Add</Button>
+                                    </div>
+                                </div>
+                            </div>
 
                             <FormField label="Average Preparation Time (mins)">
                                 <Input

@@ -41,9 +41,25 @@ const updateVendorProfile = new Elysia()
                 return ErrorHandler.ValidationError(set, "Vendor not found");
             }
 
+            // Debug: log incoming business-settings body to help trace persistence issues
+            try {
+                // eslint-disable-next-line no-console
+                console.info('[Vendor][business-settings] incoming payload:', JSON.stringify(body));
+            } catch { /* ignore logging errors */ }
+
+            // If deliveryLocations provided, set it explicitly to ensure proper array storage
+            if ((body as any).deliveryLocations !== undefined) {
+                try {
+                    const dl = (body as any).deliveryLocations;
+                    if (Array.isArray(dl)) {
+                        vendor.deliveryLocations = dl.map((d: any) => ({ location: String(d.location || ''), price: Number(d.price || 0) }));
+                    }
+                } catch { /* ignore coercion errors */ }
+            }
+
             Object.keys(body as any).forEach((key) => {
                 const value = (body as any)[key];
-                if (value !== undefined) {
+                if (value !== undefined && key !== 'deliveryLocations') {
                     vendor.set(key as string, value);
                 }
             });

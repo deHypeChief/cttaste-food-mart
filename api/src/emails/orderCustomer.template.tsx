@@ -1,38 +1,36 @@
 import React from "react";
 import { Html, Head, Body, Container, Section, Text, Heading, Link, render, Img } from '@react-email/components';
 
-interface OrderData {
+interface CustomerOrderData {
     orderNumber: string;
-    vendorName: string;
     customerName: string;
     total: number;
     items: Array<{ name: string; quantity: number; price: number }>;
-    orderId?: string;
+    orderId: string;
 }
 
-export const OrderNotificationEmail = ({ orderNumber, vendorName, customerName, total, items, orderId }: OrderData) => {
+export const CustomerOrderEmail = ({ orderNumber, customerName, total, items, orderId }: CustomerOrderData) => {
     const origin = Bun.env.ACTIVE_CLIENT_ORIGIN || Bun.env.ACTIVE_API_ORIGIN || 'http://localhost:3000';
     const root = origin.replace(/\/$/, '');
-    const vorderUrl = orderId ? `${root}/vorder/${orderId}` : null;
-
+    const vorderUrl = `${root}/vorder/${orderId}`;
     return (
         <Html>
             <Head />
             <Body style={styles.body}>
                 <Container style={styles.container}>
-                    <Heading style={styles.heading}>New Order Received</Heading>
-                    <Text style={styles.text}>Hello {vendorName},</Text>
-                    <Text style={styles.text}>You have received a new order <strong>{orderNumber}</strong> from <strong>{customerName}</strong>.</Text>
+                    <Heading style={styles.heading}>Order Received</Heading>
+                    <Text style={styles.text}>Hello {customerName || 'Customer'},</Text>
+                    <Text style={styles.text}>Thanks — we have received your order <strong>{orderNumber}</strong>. Below is a summary of your order.</Text>
 
                     <Section style={styles.section}>
                         {items.map((it, i) => (
-                            <Text key={i} style={styles.item}>{it.quantity} × {it.name} — {it.price.toFixed(2)}</Text>
+                            <Text key={i} style={styles.item}>{it.quantity} × {it.name} — ₦{Number(it.price).toLocaleString()}</Text>
                         ))}
                     </Section>
 
-                    <Text style={styles.text}>Total: <strong>{total.toFixed(2)}</strong></Text>
-                    <Text style={styles.footer}>Please check your dashboard to accept and manage this order.</Text>
-                    {vorderUrl && <Text style={styles.text}>Order summary: <Link href={vorderUrl}>{vorderUrl}</Link></Text>}
+                    <Text style={styles.text}>Total: <strong>₦ {Number(total).toLocaleString()}</strong></Text>
+                    <Text style={styles.text}>Order summary: <Link href={vorderUrl}>{vorderUrl}</Link></Text>
+                    <Text style={styles.footer}>You'll receive updates on the order status. Thank you for ordering with us.</Text>
                 </Container>
             </Body>
         </Html>
@@ -49,8 +47,8 @@ const styles = {
     footer: { fontSize: '12px', color: '#888', marginTop: '20px' }
 }
 
-export const orderNotification = async (data: OrderData): Promise<string> => {
-    return await render(<OrderNotificationEmail {...data} />);
+export const orderCustomer = async (data: CustomerOrderData): Promise<string> => {
+    return await render(<CustomerOrderEmail {...data} />);
 }
 
-export default OrderNotificationEmail;
+export default CustomerOrderEmail;

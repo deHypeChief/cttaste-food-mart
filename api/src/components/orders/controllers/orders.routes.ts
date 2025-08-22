@@ -27,6 +27,10 @@ const OrdersValidator = {
         image: t.Optional(t.String()),
       }), { minItems: 1 }),
       address: t.String({ minLength: 1 }),
+  deliveryMode: t.Optional(t.Union([t.Literal('pickup'), t.Literal('doorstep')])),
+  deliveryLocation: t.Optional(t.String()),
+  deliveryPrice: t.Optional(t.Number()),
+  deliveryInstructions: t.Optional(t.String()),
       notes: t.Optional(t.String())
     }),
     detail: { tags: ['Orders'] }
@@ -70,7 +74,7 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
     })
     .post('/', async ({ set, body, session }) => {
     try {
-      const { vendorId, items, address, notes } = body as any;
+  const { vendorId, items, address, notes, deliveryMode, deliveryLocation, deliveryPrice, deliveryInstructions } = body as any;
 
       const vendor = await Vendor.findById(vendorId);
       if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
@@ -92,6 +96,10 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
         })),
         total,
         address,
+        deliveryMode: deliveryMode || 'pickup',
+        deliveryLocation,
+        deliveryPrice: typeof deliveryPrice === 'number' ? deliveryPrice : undefined,
+        deliveryInstructions,
         status: 'Pending',
         notes,
       });
@@ -107,23 +115,15 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
               vendorName: vendor.restaurantName,
               customerName: (session && session.fullName) || 'Customer',
               total: order.total,
-              items: order.items.map((it: any) => ({ name: it.name, quantity: it.quantity, price: it.price }))
+                items: order.items.map((it: any) => ({ name: it.name, quantity: it.quantity, price: it.price })),
+                orderId: String(order._id)
             });
             EmailHandler.send(vendorEmail, `New order ${order.orderNumber}`, template).catch(() => { /* swallow email errors */ });
           }
         }
 
-        // Also notify customer by email if they exist and email notifications are expected (assumption: session email)
-        try {
-          const customerSession = await (await import('../../auth/_model')).SessionClient.findById(session._id);
-          const customerEmail = customerSession?.email;
-          if (customerEmail) {
-            const templateCust = await signIn({ name: customerSession.fullName });
-            EmailHandler.send(customerEmail, `Order Received ${order.orderNumber}`, templateCust).catch(() => {});
-          }
-        } catch (e) {
-          // ignore customer email errors
-        }
+  // NOTE: we intentionally send order notification to the vendor only.
+  // Customer-facing emails are omitted here per requirement.
       } catch (e) {
         // ignore notification errors to avoid breaking order creation
       }
@@ -201,19 +201,33 @@ const publicOrders = new Elysia({ prefix: '/orders/public' })
     }
   })
   .put('/:id/status', async ({ set, params, body }) => {
+    // Legacy public status endpoint left intentionally open for read-only preview.
+    // For security, we now require vendor session and ownership on status updates — see /orders/vendor/:id/status.
+    return ErrorHandler.UnauthorizedError(set, 'Use vendor-scoped status update endpoint');
+  });
+
+// Protect public status update by requiring vendor session and ownership.
+const publicStatusProtected = new Elysia()
+  .use(isSessionAuth('vendor'))
+  .put('/orders/public/:id/status', async ({ set, params, body, session, sessionClient }) => {
     try {
+      const vendor = await (await import('../../vendors/_model')).Vendor.findOne({ sessionClientId: session._id });
+      if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
+
       const { id } = params as any;
       const { status } = body as any;
       const allowed = ['Pending', 'Accepted', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
       if (!allowed.includes(status)) return ErrorHandler.ValidationError(set, 'Invalid status');
-      const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+
+      const order = await Order.findOneAndUpdate({ _id: id, vendorId: vendor._id }, { status }, { new: true });
       if (!order) return ErrorHandler.ValidationError(set, 'Order not found');
+
       return SuccessHandler(set, 'Order status updated', { order }, true);
     } catch (error) {
       throw ErrorHandler.ServerError(set, 'Error updating public order status', error);
     }
   });
 
-export { publicOrders };
+export { publicOrders, publicStatusProtected };
 
 export default ordersRoutes;

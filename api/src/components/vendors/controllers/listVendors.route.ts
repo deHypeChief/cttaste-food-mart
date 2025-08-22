@@ -23,7 +23,7 @@ const listVendors = new Elysia()
 
             const [items, total] = await Promise.all([
                 Vendor.find(filter)
-                    .select('restaurantName vendorType description avatar banner location isActive isApproved workingHours')
+                    .select('restaurantName vendorType description avatar banner location isActive isApproved workingHours deliveryLocations')
                     .sort({ createdAt: -1 })
                     .skip((pageNum - 1) * limitNum)
                     .limit(limitNum),
@@ -90,7 +90,7 @@ const listVendors = new Elysia()
             const { id } = params as { id: string };
             // include workingHours so we can compute current open status
             const vendor = await Vendor.findOne({ _id: id, isApproved: true, isActive: true })
-                .select('restaurantName vendorType description avatar banner location isActive isApproved address cuisine workingHours phoneNumber deliveryFee');
+                .select('restaurantName vendorType description avatar banner location isActive isApproved address cuisine workingHours phoneNumber deliveryLocations');
             if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
 
             // compute isCurrentlyOpen same as list logic
@@ -123,7 +123,7 @@ const listVendors = new Elysia()
                 address: vendor.address,
                 cuisine: vendor.cuisine,
                 phoneNumber: (vendor as any).phoneNumber,
-                deliveryFee: (vendor as any).deliveryFee,
+                deliveryLocations: (vendor as any).deliveryLocations || [],
                 isCurrentlyOpen,
             };
 

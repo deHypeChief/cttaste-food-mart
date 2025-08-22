@@ -16,6 +16,7 @@ export interface IVendor {
     // Business settings
     minimumOrder?: number;
     deliveryFee?: number;
+    deliveryLocations?: Array<{ location: string; price: number }>;
     deliveryRadius?: number;
     preparationTime?: number;
     currency?: string;
@@ -109,6 +110,13 @@ const vendorSchema = new mongoose.Schema<IVendor>({
     deliveryFee: {
         type: Number,
         default: 0,
+    },
+    deliveryLocations: {
+        type: [new mongoose.Schema({
+            location: { type: String, required: true },
+            price: { type: Number, default: 0 }
+        }, { _id: false })],
+        default: []
     },
     deliveryRadius: {
         type: Number,

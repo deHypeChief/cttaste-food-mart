@@ -88,6 +88,7 @@ export const VendorValidator = {
         body: t.Object({
             minimumOrder: t.Optional(t.Number()),
             deliveryFee: t.Optional(t.Number()),
+            deliveryLocations: t.Optional(t.Array(t.Object({ location: t.String(), price: t.Number() }))),
             preparationTime: t.Optional(t.Number()),
             // Currency stays default NGN; taxRate removed from UI but kept optional for compatibility
             currency: t.Optional(t.String()),

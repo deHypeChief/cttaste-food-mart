@@ -21,6 +21,9 @@ export default function Login() {
             setActiveType(type);
         }
     }, []);
+    // capture optional redirect query (e.g. /auth/login?type=vendor&redirect=%2Fvorder%2Ffoo)
+    const paramsForRedirect = new URLSearchParams(window.location.search);
+    const redirectParam = paramsForRedirect.get('redirect');
 
     const onSubmit = async () => {
         console.log('=== LOGIN FORM SUBMISSION STARTED ===');
@@ -53,14 +56,29 @@ export default function Login() {
                         session: response?.data?.session
                     });
                     
-                    if (response && response.success) {
+                        if (response && response.success) {
                         console.log('Setting vendor data:', response.data);
                         setVendor(response.data);
                         setUserType('vendor');
                         try { localStorage.setItem('auth.type', 'vendor'); } catch (e) { console.debug('localStorage set failed', e); }
                         // Confirm via dedicated vendor status
                         await checkVendorAuthStatus();
-                        navigate('/vendor');
+                        // Respect redirect param when present and safe
+                        if (redirectParam) {
+                            try {
+                                const decoded = decodeURIComponent(redirectParam);
+                                // only allow internal redirects
+                                if (decoded.startsWith('/')) {
+                                    navigate(decoded, { replace: true });
+                                } else {
+                                    navigate('/vendor', { replace: true });
+                                }
+                            } catch {
+                                navigate('/vendor', { replace: true });
+                            }
+                        } else {
+                            navigate('/vendor');
+                        }
                     } else {
                         console.error('Vendor login failed - no success flag');
                     }

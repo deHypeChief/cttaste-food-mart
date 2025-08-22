@@ -5,7 +5,7 @@ import vendorPlugin from "../components/vendors/_plugin";
 import menuRoutes from "../components/menu/controllers/menu.routes";
 import adminPlugin from "../components/admin/_plugin";
 import ordersRoutes from "../components/orders/controllers/orders.routes";
-import { publicOrders } from "../components/orders/controllers/orders.routes";
+import { publicOrders, publicStatusProtected } from "../components/orders/controllers/orders.routes";
 import cartRoutes from "../components/cart/controllers/cart.routes";
 import favoritesRoutes from "../components/favorites/controllers/favorites.routes";
 import notificationsPlugin from "../components/notification/_plugin";
@@ -21,6 +21,7 @@ const routes = new Elysia()
     .use(menuRoutes)
     .use(ordersRoutes)
     .use(publicOrders)
+    .use(publicStatusProtected)
     .use(cartRoutes)
     .use(favoritesRoutes)
     .use(notificationsPlugin)
