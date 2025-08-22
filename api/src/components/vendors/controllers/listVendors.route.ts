@@ -90,7 +90,7 @@ const listVendors = new Elysia()
             const { id } = params as { id: string };
             // include workingHours so we can compute current open status
             const vendor = await Vendor.findOne({ _id: id, isApproved: true, isActive: true })
-                .select('restaurantName vendorType description avatar banner location isActive isApproved address cuisine workingHours');
+                .select('restaurantName vendorType description avatar banner location isActive isApproved address cuisine workingHours phoneNumber deliveryFee');
             if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
 
             // compute isCurrentlyOpen same as list logic
@@ -122,6 +122,8 @@ const listVendors = new Elysia()
                 isApproved: vendor.isApproved,
                 address: vendor.address,
                 cuisine: vendor.cuisine,
+                phoneNumber: (vendor as any).phoneNumber,
+                deliveryFee: (vendor as any).deliveryFee,
                 isCurrentlyOpen,
             };
 

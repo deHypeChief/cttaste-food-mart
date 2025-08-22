@@ -10,6 +10,7 @@ export default function Checkout() {
     const navigate = useNavigate();
     const { user, isAuthenticated, userType, isLoading } = useAuth();
     const { items, loading: cartLoading, clear } = useCart();
+    // (Deprecated) multi-link fallback removed; we now redirect directly to first WhatsApp link
 
     // Group cart items by vendorId
     const groups = useMemo(() => {
@@ -83,13 +84,7 @@ export default function Checkout() {
         }
     }, [isAuthenticated, userType, isLoading, navigate]);
 
-    // Redirect to cart if there are no items
-    useEffect(() => {
-        if (cartLoading) return;
-        if (!items || items.length === 0) {
-            navigate('/cart', { replace: true });
-        }
-    }, [items, cartLoading, navigate]);
+    // Removed auto-redirect to /cart so we can jump straight to WhatsApp after ordering.
 
     const placeOrders = async () => {
         if (!isAuthenticated || userType !== 'customer') return;
@@ -135,38 +130,42 @@ export default function Checkout() {
             
             // Place each vendor order separately
             const responses = await Promise.all(payloads.map((p) => ordersService.placeOrder(p)));
-            // After orders are created, open WhatsApp links per vendor with a link to the order summary page
+            // After orders are created, build the first WhatsApp link and redirect immediately
             try {
-                const formatPhoneForWa = (raw) => {
-                    if (!raw) return null;
-                    let d = String(raw).replace(/\D/g, '');
-                    // replace leading 0 with country code 234 for local Nigerian numbers
-                    if (d.length === 11 && d.startsWith('0')) d = '234' + d.slice(1);
-                    if (d.length === 10 && d.startsWith('0')) d = '234' + d.slice(1);
-                    // if number already starts with country code (e.g. 234...), leave as is
-                    if (d.length >= 10) return d;
-                    return null;
-                };
-
                 const host = window.location.origin;
-
                 for (let i = 0; i < responses.length; i++) {
                     const res = responses[i];
                     const p = payloads[i];
                     try {
-                        // Normalize response to find created order id and vendorId
                         const maybe = res?.data?.order || res?.data || res?.order || res;
                         const order = maybe?.order || maybe || null;
                         const orderId = order?._id || order?.id || (order && order._id) || null;
-
                         const v = vendorsInfo[p.vendorId];
+                        if (!v) {
+                            console.warn('[Checkout] Missing vendor info for', p.vendorId);
+                            continue;
+                        }
                         const rawPhone = v?.phoneNumber || v?.phone || '';
-                        const phone = formatPhoneForWa(rawPhone);
-                        if (!phone) continue;
-
+                        // Enhanced formatter allowing short test numbers
+                        const phone = (() => {
+                            if (!rawPhone) return null;
+                            let d = String(rawPhone).replace(/\D/g, '');
+                            if (!d) return null;
+                            if (d.startsWith('0')) d = '234' + d.slice(1); // local leading 0
+                            if (d.length === 10 && !d.startsWith('234')) d = '234' + d; // local 10-digit
+                            if (d.length < 10) {
+                                // Accept short test numbers (e.g., 3333) by prefixing 234 if missing
+                                if (!d.startsWith('234')) d = '234' + d;
+                                console.warn('[Checkout] Using fallback WhatsApp number for short test value:', d, '(raw:', rawPhone, ')');
+                            }
+                            return d;
+                        })();
+                        if (!phone) {
+                            console.warn('[Checkout] No valid phone for vendor', p.vendorId, 'raw:', rawPhone);
+                            continue;
+                        }
                         const vendorTotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
                         const itemCount = (p.items || []).reduce((s, it) => s + Number(it.quantity || 0), 0);
-
                         let msg = '';
                         msg += `from: ${customer.name}\n`;
                         msg += `total: ₦ ${vendorTotal.toLocaleString()}\n`;
@@ -178,26 +177,37 @@ export default function Checkout() {
                             msg += `Amt: ₦ ${Number(it.price * it.quantity).toLocaleString()}\n`;
                             msg += `\n`;
                         }
-
-                        // append a vendor order summary link so vendor can open a quick summary page
                         if (orderId) {
                             const vorderUrl = `${host}/vorder/${orderId}`;
                             msg += `Order summary: ${vorderUrl}\n`;
                         }
-
                         const wa = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-                        try { window.open(wa, '_blank'); } catch { /* ignore popup failures */ }
-                    } catch { /* continue on per-vendor errors */ }
+                        // Persist + log before redirect so user can see it
+                        try {
+                            console.group('[Checkout] WhatsApp Redirect');
+                            console.info('WhatsApp link:', wa);
+                            console.info('NOTE: Redirecting in 800ms. Copy link if needed.');
+                            console.groupEnd();
+                        } catch { /* ignore */ }
+                        try { localStorage.setItem('lastWaLink', wa); } catch { /* ignore */ }
+                        try { navigator.clipboard?.writeText(wa).catch(() => {}); } catch { /* ignore */ }
+                        // Slight delay so log flushes & DevTools can catch it
+                        setTimeout(() => { window.location.assign(wa); }, 800);
+                        return; // stop after scheduling redirect
+                    } catch { /* ignore and try next */ }
                 }
             } catch (err) {
                 console.warn('Failed to open WhatsApp links after order placement', err);
             }
+
+
             try {
                 console.groupCollapsed('[Checkout] Order responses');
                 console.log('Responses:', responses);
             } finally {
                 console.groupEnd?.();
             }
+            // If we got here, no WA link was produced; navigate to orders page and clear cart.
             await clear?.();
             navigate('/user/orders');
         } catch (e) {
@@ -296,6 +306,7 @@ export default function Checkout() {
                             <div className="border-b border-border pb-3">
                                 <p className="font-semibold text-lg">Cart Summary</p>
                             </div>
+                            {/* Removed manual multi-chat fallback UI */}
                             <div className="flex gap-4">
                                 <label className="flex items-center gap-2 text-sm">
                                     <input type="radio" name="delopt" value="pickup" checked={deliveryOption === 'pickup'} onChange={() => setDeliveryOption('pickup')} />

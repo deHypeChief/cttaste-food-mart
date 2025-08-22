@@ -18,6 +18,11 @@ export const userAuthService = {
         return apiClient.get(API_ENDPOINTS.USER_STATUS);
     },
 
+    // Update user profile
+    updateProfile: async (profileData) => {
+        return apiClient.patch(API_ENDPOINTS.USER_UPDATE_PROFILE, profileData);
+    },
+
     // Delete user account
     deleteAccount: async () => {
         return apiClient.delete(API_ENDPOINTS.DELETE_USER);

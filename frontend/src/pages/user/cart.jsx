@@ -15,6 +15,10 @@ export default function Cart() {
     const [suggestLoading, setSuggestLoading] = useState(false);
     const [suggestError, setSuggestError] = useState("");
 
+    // Vendor names for items in cart (map vendorId -> restaurantName)
+    const [vendorNames, setVendorNames] = useState({});
+    const [vendorNamesLoading, setVendorNamesLoading] = useState(false);
+
     useEffect(() => {
         (async () => {
             try {
@@ -28,6 +32,35 @@ export default function Cart() {
             }
         })();
     }, []);
+
+    // Fetch vendor names for cart items (only for vendorIds not already cached)
+    useEffect(() => {
+        // Only refetch on items/isEmpty changes to avoid update loop. We intentionally
+        // exclude vendorNames from deps; new vendors trigger via items change.
+        const fetchNames = async () => {
+            const ids = Array.from(new Set((items || []).map(it => it.vendorId).filter(Boolean)));
+            const missing = ids.filter(id => !vendorNames[id]);
+            if (missing.length === 0) return; // nothing new
+            setVendorNamesLoading(true);
+            try {
+                const entries = await Promise.all(missing.map(async id => {
+                    try {
+                        const res = await vendorService.getPublic(id);
+                        const name = res?.data?.vendor?.restaurantName || 'Vendor';
+                        return [id, name];
+                    } catch {
+                        return [id, 'Vendor'];
+                    }
+                }));
+                setVendorNames(prev => ({ ...prev, ...Object.fromEntries(entries) }));
+            } finally {
+                setVendorNamesLoading(false);
+            }
+        };
+        if (!isEmpty) fetchNames();
+        else if (Object.keys(vendorNames).length) setVendorNames({});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [items, isEmpty]);
     return (
         <div className="mx-5 md:mx-20 md:*:ml-24 ">
             <div className="mt-10 flex justify-between">
@@ -56,8 +89,7 @@ export default function Cart() {
                                                 <p>From</p>
                                             </div>
                                             <h2 className="text-xl font-medium mt-1">
-                                                {/* Vendor name is not in snapshot; optional: fetch-by-vendor for labels later */}
-                                                Vendor
+                                                {vendorNames[it.vendorId] || (vendorNamesLoading ? 'Loading…' : 'Vendor')}
                                             </h2>
                                         </div>
 

@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     LOGIN_USER: '/users/sign',
     USER_STATUS: '/auth/status/user',
     DELETE_USER: '/users/delete',
+    USER_UPDATE_PROFILE: '/users/profile',
     
     // Vendor endpoints
     REGISTER_VENDOR: '/vendors/register',
@@ -64,11 +65,15 @@ const apiClient = axios.create({
 // Request interceptor for logging
 apiClient.interceptors.request.use(
     (config) => {
-        console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        if (import.meta?.env?.VITE_API_DEBUG === 'true') {
+            console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        }
         return config;
     },
     (error) => {
-        console.error('❌ Request Error:', error);
+        if (import.meta?.env?.VITE_API_DEBUG === 'true') {
+            console.error('❌ Request Error:', error);
+        }
         return Promise.reject(error);
     }
 );
@@ -76,23 +81,22 @@ apiClient.interceptors.request.use(
 // Response interceptor for handling errors
 apiClient.interceptors.response.use(
     (response) => {
-        console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+        if (import.meta?.env?.VITE_API_DEBUG === 'true') {
+            console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+        }
         return response.data; // Return just the data
     },
     (error) => {
-        console.error('❌ API Error:', error);
-        
-        // Extract error message
+        if (import.meta?.env?.VITE_API_DEBUG === 'true') {
+            console.error('❌ API Error:', error);
+        }
         const errorMessage = error.response?.data?.message 
             || error.response?.data?.error 
             || error.message 
             || 'An unexpected error occurred';
-        
-        // Create a more user-friendly error
         const customError = new Error(errorMessage);
         customError.status = error.response?.status;
         customError.data = error.response?.data;
-        
         return Promise.reject(customError);
     }
 );

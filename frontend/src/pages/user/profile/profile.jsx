@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Form, FormField, Input } from "../../../components/form";
 import Button from "../../../components/button";
 import { useAuth } from "../../../hooks/useAuth.js";
+import { userAuthService } from "../../../api/auth.js";
 
 export default function Profile() {
     const { user } = useAuth();
@@ -35,9 +36,31 @@ export default function Profile() {
     // eslint-disable-next-line no-unused-vars
     const [errors, setErrors] = useState({});
 
-    const onSubmit = (e) => {
+    const [saving, setSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState("");
+    const onSubmit = async (e) => {
         e.preventDefault();
-        console.log('Profile Data:', form);
+        setSaveMessage("");
+        setSaving(true);
+        try {
+            const payload = {
+                fullName: form.name,
+                username: form.name, // assuming name maps to username/fullName
+                phoneNumber: form.phone,
+                address: form.deliveryAddress,
+                school: form.school,
+            };
+            const res = await userAuthService.updateProfile(payload);
+            if (res?.success) {
+                setSaveMessage('Profile saved');
+            } else {
+                setSaveMessage(res?.message || 'Failed to save');
+            }
+        } catch (err) {
+            setSaveMessage(err.message || 'Failed to save');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -122,9 +145,12 @@ export default function Profile() {
                                 />
                             </FormField>
                             
-                            <Button type="submit" className="w-full py-3">
-                                Save Profile
-                            </Button>
+                            <div className="space-y-2">
+                                <Button type="submit" className="w-full py-3" disabled={saving}>
+                                    {saving ? 'Saving...' : 'Save Profile'}
+                                </Button>
+                                {saveMessage && <p className="text-sm text-center opacity-70">{saveMessage}</p>}
+                            </div>
                         </Form>
                     </div>
                 </div>
