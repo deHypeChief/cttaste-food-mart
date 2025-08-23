@@ -183,28 +183,48 @@ export default function Checkout() {
                             console.warn('[Checkout] No valid phone for vendor', p.vendorId, 'raw:', rawPhone);
                             continue;
                         }
-                        const vendorTotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0) + Number(p.deliveryPrice || 0);
-                        const itemCount = (p.items || []).reduce((s, it) => s + Number(it.quantity || 0), 0);
+                        const deliveryPrice = Number(p.deliveryPrice || 0);
+                        const vendorSubtotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
+                        const vendorTotal = vendorSubtotal + deliveryPrice;
+                        // itemCount not used in new message format
+
+                        // Build WhatsApp message in the requested layout
                         let msg = '';
-                        msg += `from: ${customer.name}\n`;
-                        msg += `total: ₦ ${vendorTotal.toLocaleString()}\n`;
-                        msg += `items: ${itemCount}\n`;
-                        msg += `----------------------------------\n`;
-                        for (const it of p.items) {
-                            msg += `*${it.name}*\n`;
-                            msg += `Oty: ${it.quantity}\n`;
-                            msg += `Amt: ₦ ${Number(it.price * it.quantity).toLocaleString()}\n`;
-                            msg += `\n`;
+                        msg += `Order Content\n\n`;
+                        msg += `Order ID: ${orderId || '—'}\n\n`;
+                        msg += `Items Ordered:\n\n`;
+
+                        for (let idx = 0; idx < (p.items || []).length; idx++) {
+                            const it = p.items[idx];
+                            msg += `${it.name} × ${it.quantity}\n\n`;
+                            if (idx < (p.items || []).length - 1) {
+                                msg += `________________________\n\n`;
+                            }
                         }
-                        if (p.deliveryMode === 'doorstep') {
-                            if (p.deliveryLocation) msg += `Delivery Location: ${p.deliveryLocation}\n`;
-                            if (p.deliveryPrice) msg += `Delivery Fee: ₦ ${Number(p.deliveryPrice).toLocaleString()}\n`;
-                            if (p.deliveryInstructions) msg += `Instructions: ${p.deliveryInstructions}\n`;
+
+                        msg += `Pricing\n\n`;
+                        msg += `Subtotal: ₦${vendorSubtotal.toLocaleString()}\n\n`;
+                        msg += `Delivery Price: ₦${deliveryPrice.toLocaleString()}\n\n`;
+                        msg += `Total Price: ₦${vendorTotal.toLocaleString()}\n\n`;
+
+                        msg += `Customer Details\n\n`;
+                        msg += `Name: ${customer.name}\n\n`;
+                        // Use selected delivery location for 'Location' when available
+                        msg += `Location: ${p.deliveryLocation || ''}\n\n`;
+                        msg += `__________________________________________________________________\n`;
+                        msg += `Address: ${p.address || customer.address || '—'}\n\n`;
+                        msg += `Phone number: ${customer.phone}\n`;
+
+                        if (deliveryPrice && p.deliveryMode === 'doorstep') {
+                            // explicit note to vendor about delivery and fee
+                            msg += `\n(Delivery fee included: ₦${deliveryPrice.toLocaleString()})\n`;
                         }
+
                         if (orderId) {
                             const vorderUrl = `${host}/vorder/${orderId}`;
-                            msg += `Order summary: ${vorderUrl}\n`;
+                            msg += `\nOrder summary: ${vorderUrl}\n`;
                         }
+
                         const wa = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                         // Persist + log before redirect so user can see it
                         try {
