@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Button from "../../components/button";
 import { H1 } from "../../components/typography";
 import { ExploreCard } from "../../components/vendor";
@@ -7,7 +7,7 @@ import { useCart } from "../../hooks/useCart";
 import { vendorService } from "../../api/vendor";
 
 export default function Cart() {
-    const { items, count, total, updateQty, clear } = useCart();
+    const { items, count, total, clear, packsByVendor, packItemQuantities, adjustPackItem } = useCart();
     const isEmpty = !items || items.length === 0;
 
     // Suggested vendors (max 8)
@@ -61,6 +61,42 @@ export default function Cart() {
         else if (Object.keys(vendorNames).length) setVendorNames({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [items, isEmpty]);
+    // Build vendor -> pack -> items structure
+    const vendorPackStructure = useMemo(() => {
+        const struct = {}; // { vendorId: { packs: { packId: [ { item, quantity } ] }, order: [packIds] } }
+        const itemsById = Object.fromEntries((items || []).map(i => [i.menuItemId, i]));
+        const vendorIds = Array.from(new Set((items || []).map(i => i.vendorId).filter(Boolean)));
+        vendorIds.forEach(vid => {
+            const packs = {};
+            const packQty = packItemQuantities?.[vid] || {};
+            const hasPackData = Object.keys(packQty).length > 0;
+            if (hasPackData) {
+                // Use explicit per-pack quantities only
+                Object.entries(packQty).forEach(([pid, obj]) => {
+                    Object.entries(obj).forEach(([mid, qty]) => {
+                        if (!qty) return; // skip zero
+                        const base = itemsById[mid];
+                        if (!base) return;
+                        if (!packs[pid]) packs[pid] = [];
+                        packs[pid].push({ ...base, quantity: qty });
+                    });
+                });
+            } else {
+                // No pack data yet for this vendor: show a single default pack with server aggregate quantities
+                const pid = 'pack-1';
+                packs[pid] = (items || []).filter(it => it.vendorId === vid && Number(it.quantity) > 0).map(it => ({ ...it }));
+            }
+            // Order packs numerically
+            const orderedPackIds = Object.keys(packs).sort((a, b) => {
+                const na = Number((a.match(/pack-(\d+)/) || [])[1] || 9999);
+                const nb = Number((b.match(/pack-(\d+)/) || [])[1] || 9999);
+                return na - nb || a.localeCompare(b);
+            });
+            struct[vid] = { packs, order: orderedPackIds };
+        });
+        return struct;
+    }, [items, packItemQuantities]);
+
     return (
         <div className="mx-5 md:mx-20 md:*:ml-24 ">
             <div className="mt-10 flex justify-between">
@@ -76,48 +112,59 @@ export default function Cart() {
                         {isEmpty && (
                             <div className="text-center opacity-60">Your cart is empty</div>
                         )}
-                        {items?.map((it) => (
-                            <div key={it.menuItemId} className="bg-white p-7 rounded-xl flex flex-col md:flex-row md:items-center justify-between space-y-3 md:space-y-0">
-                                <div className="flex gap-5 items-center">
-                                    <div className="h-[80px] w-[80px] md:h-[100px] md:w-[100px] rounded-xl bg-gray-200 overflow-hidden">
-                                        {it.image && <img src={it.image} alt={it.name} className="w-full h-full object-cover" />}
-                                    </div>
-
-                                    <div className="flex flex-col justify-between py-2">
-                                        <div>
-                                            <div className="bg-primary text-white inline-flex items-center px-3 py-1 rounded text-xs font-medium top-4 left-5">
-                                                <p>From</p>
-                                            </div>
-                                            <h2 className="text-xl font-medium mt-1">
-                                                {vendorNames[it.vendorId] || (vendorNamesLoading ? 'Loading…' : 'Vendor')}
-                                            </h2>
-                                        </div>
-
-                                        <p className="font-medium opacity-60">{it.name}</p>
-                                    </div>
-                                </div>
-                                <div>
+                        {!isEmpty && Object.entries(vendorPackStructure).map(([vid, info]) => {
+                            const vendorLabel = vendorNames[vid] || (vendorNamesLoading ? 'Loading…' : 'Vendor');
+                            return (
+                                <div key={vid} className="bg-white p-7 rounded-xl space-y-6">
                                     <div>
-                                        <h3 className="font-semibold text-2xl md:text-right">N {Number(it.price).toLocaleString()}</h3>
-                                        <div className="flex items-center gap-2 mt-3 justify-between ">
-                                            <Button
-                                                icon="fluent:subtract-12-filled"
-                                                className="py-3"
-                                                onClick={() => updateQty(it.menuItemId, Math.max(0, (it.quantity || 0) - 1))}
-                                                aria-label="Decrease quantity"
-                                            />
-                                            <p className="w-10 text-center font-medium text-lg opacity-60">{it.quantity}</p>
-                                            <Button
-                                                icon="ic:round-plus"
-                                                className="py-3 "
-                                                onClick={() => updateQty(it.menuItemId, (it.quantity || 0) + 1)}
-                                                aria-label="Increase quantity"
-                                            />
+                                        <div className="bg-primary text-white inline-flex items-center px-3 py-1 rounded text-xs font-medium">
+                                            <p>From</p>
                                         </div>
+                                        <h2 className="text-xl font-medium mt-2">{vendorLabel}</h2>
                                     </div>
+                                    {/* Packs */}
+                                    {info.order.map(pid => {
+                                        const packItems = info.packs[pid] || [];
+                                        if (!packItems.length) return null;
+                                        const packName = packsByVendor[vid]?.[pid]?.name || pid;
+                                        return (
+                                            <div key={pid} className="border rounded-lg p-4 space-y-4">
+                                                <h3 className="font-semibold text-sm uppercase tracking-wide text-primary">{packName}</h3>
+                                                {packItems.map(ci => (
+                                                    <div key={ci.menuItemId} className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-3 rounded-lg">
+                                                        <div className="flex gap-4 items-center">
+                                                            <div className="h-[70px] w-[70px] rounded-lg bg-gray-200 overflow-hidden">
+                                                                {ci.image && <img src={ci.image} alt={ci.name} className="w-full h-full object-cover" />}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium opacity-80">{ci.name}</p>
+                                                                <p className="font-semibold text-lg mt-1">N {Number(ci.price).toLocaleString()}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 self-start md:self-auto">
+                                                            {/* Quantity here reflects per-pack quantity (not global aggregated). adjustPackItem syncs server cart */}
+                                                            <Button
+                                                                icon="fluent:subtract-12-filled"
+                                                                className="py-3"
+                                                                onClick={() => adjustPackItem({ vendorId: vid, packId: pid, menuItemId: ci.menuItemId, name: ci.name, price: ci.price, image: ci.image }, -1)}
+                                                                aria-label="Decrease quantity"
+                                                            />
+                                                            <p className="w-10 text-center font-medium text-lg opacity-60">{ci.quantity}</p>
+                                                            <Button
+                                                                icon="ic:round-plus"
+                                                                className="py-3"
+                                                                onClick={() => adjustPackItem({ vendorId: vid, packId: pid, menuItemId: ci.menuItemId, name: ci.name, price: ci.price, image: ci.image }, +1)}
+                                                                aria-label="Increase quantity"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
                 <div>

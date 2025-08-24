@@ -54,7 +54,7 @@ export function ExploreCard({ vendorName, name, vendorType, description, avatar,
                     <div className="flex justify-between mt-2 gap-2 items-center">
                         <div className="min-w-0">
                             <h3 className="font-medium text-xs md:text-lg truncate">{name || 'Vendor'}</h3>
-                            <p className="text-xs md:text-sm opacity-60 truncate">{description || [location, vendorType].filter(Boolean).join(' • ') || 'Best Meals with drinks n wines'}</p>
+                            <p className="text-xs md:text-sm opacity-60 truncate">{typeof description === 'string' && description.trim() ? description : ([location, vendorType].filter(Boolean).join(' • ') || 'Best Meals with drinks n wines')}</p>
                         </div>
 
                         <div>

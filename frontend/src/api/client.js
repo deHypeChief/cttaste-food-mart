@@ -46,6 +46,7 @@ export const API_ENDPOINTS = {
     CART: '/cart',
     CART_ITEMS: '/cart/items',
     CART_ITEM: (menuItemId) => `/cart/items/${menuItemId}`,
+    CART_PACKS: '/cart/packs',
 
     // Favorites endpoints
     FAVORITES: '/favorites',

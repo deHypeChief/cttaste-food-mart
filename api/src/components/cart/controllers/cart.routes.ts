@@ -71,6 +71,22 @@ const cartRoutes = new Elysia({ prefix: '/cart' })
       throw ErrorHandler.ServerError(set, 'Error adding to cart', error);
     }
   }, CartValidators.addItem)
+  .patch('/packs', async ({ set, session, body }) => {
+    try {
+      const userId = new mongoose.Types.ObjectId(session._id);
+      const { packsByVendor, assignments, packItemQuantities } = body as any;
+      let cart = await Cart.findOne({ userId });
+      if (!cart) cart = await Cart.create({ userId, items: [] });
+      if (typeof packsByVendor !== 'undefined') cart.packsByVendor = packsByVendor || {};
+      if (typeof assignments !== 'undefined') cart.assignments = assignments || {};
+      if (typeof packItemQuantities !== 'undefined') cart.packItemQuantities = packItemQuantities || {};
+      await cart.save();
+      const { count, total } = computeCountAndTotal(cart.items);
+      return SuccessHandler(set, 'Cart packs updated', { cart, count, total });
+    } catch (error) {
+      throw ErrorHandler.ServerError(set, 'Error updating cart packs', error);
+    }
+  })
   .patch('/items/:menuItemId', async ({ set, session, params, body }) => {
     try {
       const userId = new mongoose.Types.ObjectId(session._id);

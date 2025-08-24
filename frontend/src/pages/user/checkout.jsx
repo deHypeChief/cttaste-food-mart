@@ -9,7 +9,7 @@ import { ordersService } from "../../api/orders";
 export default function Checkout() {
     const navigate = useNavigate();
     const { user, isAuthenticated, userType, isLoading } = useAuth();
-    const { items, loading: cartLoading, clear } = useCart();
+    const { items, loading: cartLoading, clear, packsByVendor, assignments, packItemQuantities } = useCart();
     // (Deprecated) multi-link fallback removed; we now redirect directly to first WhatsApp link
 
     // Group cart items by vendorId
@@ -22,6 +22,31 @@ export default function Checkout() {
         });
         return map;
     }, [items]);
+
+    // Build pack grouping per vendor { vendorId: { packId: [items] } }
+    const packGroups = useMemo(() => {
+        // Build grouping using packItemQuantities so that an item can exist in multiple packs with different quantities.
+        const res = {};
+        (items || []).forEach(it => {
+            const vid = it.vendorId; if (!vid) return;
+            const vendorPackQty = packItemQuantities?.[vid];
+            if (vendorPackQty) {
+                Object.entries(vendorPackQty).forEach(([pid, obj]) => {
+                    const qty = obj[it.menuItemId];
+                    if (!qty) return;
+                    if (!res[vid]) res[vid] = {};
+                    if (!res[vid][pid]) res[vid][pid] = [];
+                    res[vid][pid].push({ ...it, quantity: qty });
+                });
+            } else {
+                const packId = assignments[it.menuItemId]?.packId || 'pack-1';
+                if (!res[vid]) res[vid] = {};
+                if (!res[vid][packId]) res[vid][packId] = [];
+                res[vid][packId].push(it);
+            }
+        });
+        return res;
+    }, [items, assignments, packItemQuantities]);
 
     // Fetch vendor details for pickup location and delivery fee
     const [vendorsInfo, setVendorsInfo] = useState({}); // { [vendorId]: vendor }
@@ -194,11 +219,27 @@ export default function Checkout() {
                         msg += `Order ID: ${orderId || '—'}\n\n`;
                         msg += `Items Ordered:\n\n`;
 
-                        for (let idx = 0; idx < (p.items || []).length; idx++) {
-                            const it = p.items[idx];
-                            msg += `${it.name} × ${it.quantity}\n\n`;
-                            if (idx < (p.items || []).length - 1) {
-                                msg += `________________________\n\n`;
+                        // Insert pack grouping in message
+                        const vendorPackGroups = packGroups[p.vendorId] || {};
+                        const orderedPackIds = Object.keys(vendorPackGroups).sort();
+                        if (orderedPackIds.length) {
+                            orderedPackIds.forEach((pid, pidx) => {
+                                const def = packsByVendor[p.vendorId]?.[pid];
+                                msg += `---${def?.name || pid}---\n\n`;
+                                const list = vendorPackGroups[pid];
+                                list.forEach((it, idx) => {
+                                    msg += `${it.name} × ${it.quantity}\n\n`;
+                                    if (idx < list.length - 1) msg += `________________________\n\n`;
+                                });
+                                if (pidx < orderedPackIds.length - 1) msg += `\n`;
+                            });
+                        } else {
+                            for (let idx = 0; idx < (p.items || []).length; idx++) {
+                                const it = p.items[idx];
+                                msg += `${it.name} × ${it.quantity}\n\n`;
+                                if (idx < (p.items || []).length - 1) {
+                                    msg += `________________________\n\n`;
+                                }
                             }
                         }
 
@@ -317,28 +358,39 @@ export default function Checkout() {
                             <div className="space-y-8 pt-10">
                                 {Array.from(groups.entries()).map(([vid, vitems]) => {
                                     const v = vendorsInfo[vid];
+                                    const vendorPackGroups = packGroups[vid] || {};
+                                    const packIds = Object.keys(vendorPackGroups).length ? Object.keys(vendorPackGroups) : ['__all'];
                                     return (
-                                        <div key={vid} className="space-y-3">
+                                        <div key={vid} className="space-y-5">
                                             <div className="bg-primary text-white inline-flex items-center px-3 py-1 rounded text-xs font-medium">
                                                 <p>From</p>
                                             </div>
                                             <h2 className="text-xl font-medium mt-1">{v?.restaurantName || 'Vendor'}</h2>
-                                            {vitems.map((ci, idx) => (
-                                                <div key={idx} className="p-4 py-0 rounded-xl flex items-center justify-between">
-                                                    <div className="flex gap-5">
-                                                        <div className="h-[84px] w-[84px] rounded-xl bg-gray-200 overflow-hidden">
-                                                            {ci.image && <img src={ci.image} alt={ci.name} className="w-full h-full object-cover" />}
-                                                        </div>
-                                                        <div className="flex flex-col justify-center">
-                                                            <p className="font-medium opacity-80">{ci.name}</p>
-                                                        </div>
+                                            {packIds.map(pid => {
+                                                const list = pid === '__all' ? vitems : vendorPackGroups[pid];
+                                                const packName = pid === '__all' ? null : (packsByVendor[vid]?.[pid]?.name || pid);
+                                                return (
+                                                    <div key={pid} className="border rounded-lg p-3 space-y-3">
+                                                        {packName && <h3 className="font-semibold text-sm uppercase tracking-wide text-primary">{packName}</h3>}
+                                                        {list.map((ci, idx) => (
+                                                            <div key={idx} className="p-2 rounded-xl flex items-center justify-between bg-gray-50">
+                                                                <div className="flex gap-4">
+                                                                    <div className="h-[64px] w-[64px] rounded-lg bg-gray-200 overflow-hidden">
+                                                                        {ci.image && <img src={ci.image} alt={ci.name} className="w-full h-full object-cover" />}
+                                                                    </div>
+                                                                    <div className="flex flex-col justify-center">
+                                                                        <p className="font-medium opacity-80">{ci.name}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <h3 className="font-semibold text-lg text-right">₦ {Number(ci.price).toLocaleString()}</h3>
+                                                                    <p className="text-right font-medium text-xs opacity-60">Qty: {ci.quantity}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-semibold text-xl text-right">₦ {Number(ci.price).toLocaleString()}</h3>
-                                                        <p className="text-right font-medium text-sm opacity-60">Qty: {ci.quantity}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     );
                                 })}

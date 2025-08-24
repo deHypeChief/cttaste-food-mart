@@ -115,6 +115,55 @@ export default function VOrder() {
   const items = order.items || [];
   const vendor = order.vendorId || order.vendor || null;
 
+  // Build grouped items (prefer server-provided pack shapes if present)
+  const groupedItems = (() => {
+    if (!Array.isArray(items) || items.length === 0) return { hasPacks: false, groups: [] };
+
+    // prefer pack shapes attached to the order (server-authoritative)
+    const orderPacks = order.packsByVendor || order.cart?.packsByVendor || null;
+    const orderPackQty = order.packItemQuantities || order.cart?.packItemQuantities || null;
+
+    // Normalize vendor key to string and fall back to first vendor key in server payload.
+    let vendorIdKey = null;
+    if (vendor) {
+      const cand = vendor?._id || vendor?.id || vendor;
+      if (cand != null) vendorIdKey = String(cand);
+    }
+    if (!vendorIdKey && orderPackQty) {
+      const keys = Object.keys(orderPackQty || {});
+      if (keys.length === 1) vendorIdKey = keys[0];
+    }
+
+    if (orderPackQty && vendorIdKey && orderPackQty[vendorIdKey]) {
+      const vendorPackObj = orderPackQty[vendorIdKey] || {};
+      const groups = Object.keys(vendorPackObj).map((pid) => {
+        const qtyObj = vendorPackObj[pid] || {};
+        const name = orderPacks?.[vendorIdKey]?.[pid]?.name || pid;
+        const groupItems = Object.keys(qtyObj).map((mid) => {
+          const base = items.find(it => String(it.menuItemId || it._id || it.id) === String(mid));
+          const qty = Number(qtyObj[mid] || 0);
+          return base ? { ...base, quantity: qty } : { menuItemId: mid, name: 'Item', quantity: qty };
+        }).filter(Boolean);
+        return { id: pid, name, items: groupItems };
+      });
+      return { hasPacks: true, groups };
+    }
+
+    // next fallback: items themselves may carry packId/packName
+    const hasPack = items.some((it) => it && (it.packId || it.packName));
+    if (!hasPack) return { hasPacks: false, groups: [{ id: '__default', name: null, items }] };
+
+    const map = new Map();
+    items.forEach((it) => {
+      const pid = it.packId || '__default';
+      const pname = it.packName || (pid === '__default' ? null : `Pack ${pid}`);
+      if (!map.has(pid)) map.set(pid, { id: pid, name: pname, items: [] });
+      map.get(pid).items.push(it);
+    });
+
+    return { hasPacks: true, groups: Array.from(map.values()) };
+  })();
+
   return (
     <div className="mx-4 md:mx-20 mt-8">
       {showModal && (
@@ -183,44 +232,59 @@ export default function VOrder() {
           <div>
             <h3 className="font-medium text-lg">Items</h3>
             <div className="space-y-4 mt-4">
-              {items.map((it, idx) => (
-                <div
-                  key={idx}
-                  className="flex gap-4 items-center border rounded p-3"
-                >
-                  <div className="h-[72px] w-[72px] bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                    {it.image ? (
-                      <img
-                        src={it.image}
-                        alt={it.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        🍽️
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium">{it.name}</div>
-                        <div className="text-sm opacity-60 mt-1">
-                          Qty: {it.quantity}
+              {/* If packs exist, render groups with headers; otherwise render flat list */}
+              {groupedItems.hasPacks
+                ? groupedItems.groups.map((g) => (
+                    <div key={g.id} className="space-y-2">
+                      <div className="px-3 py-2 bg-gray-100 rounded font-medium">{g.name || 'Pack'}</div>
+                      {g.items.map((it, idx) => (
+                        <div key={idx} className="flex gap-4 items-center border rounded p-3">
+                          <div className="h-[72px] w-[72px] bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                            {it.image ? (
+                              <img src={it.image} alt={it.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-300">🍽️</div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium">{it.name}</div>
+                                <div className="text-sm opacity-60 mt-1">Qty: {it.quantity}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">₦ {Number(it.price * it.quantity).toLocaleString()}</div>
+                                <div className="text-sm opacity-60">₦ {Number(it.price).toLocaleString()} ea</div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  ))
+                : groupedItems.groups[0].items.map((it, idx) => (
+                    <div key={idx} className="flex gap-4 items-center border rounded p-3">
+                      <div className="h-[72px] w-[72px] bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                        {it.image ? (
+                          <img src={it.image} alt={it.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">🍽️</div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold">
-                          ₦ {Number(it.price * it.quantity).toLocaleString()}
-                        </div>
-                        <div className="text-sm opacity-60">
-                          ₦ {Number(it.price).toLocaleString()} ea
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium">{it.name}</div>
+                            <div className="text-sm opacity-60 mt-1">Qty: {it.quantity}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold">₦ {Number(it.price * it.quantity).toLocaleString()}</div>
+                            <div className="text-sm opacity-60">₦ {Number(it.price).toLocaleString()} ea</div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
             </div>
             {order.notes && (
               <div className="mt-4 p-3 bg-yellow-50 rounded border">
@@ -253,6 +317,26 @@ export default function VOrder() {
                 ₦ {Number(order.total || 0).toLocaleString()}
               </div>
             </div>
+
+              {order.deliveryMode === 'doorstep' && (
+                <div className="mb-6 p-3 bg-white border rounded">
+                  <div className="text-sm opacity-60">Delivery</div>
+                  <div className="font-medium">Doorstep</div>
+                  {order.deliveryLocation && (
+                    <div className="text-sm opacity-60 mt-1">
+                      Location: {order.deliveryLocation}
+                    </div>
+                  )}
+                  {order.deliveryPrice != null && (
+                    <div className="text-sm opacity-60 mt-1">
+                      Fee: ₦ {Number(order.deliveryPrice || 0).toLocaleString()}
+                    </div>
+                  )}
+                  {order.deliveryInstructions && (
+                    <div className="mt-2 text-sm">Instructions: {order.deliveryInstructions}</div>
+                  )}
+                </div>
+              )}
 
             <div className="flex gap-3">
               <Button

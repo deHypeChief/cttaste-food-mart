@@ -6,4 +6,5 @@ export const cartService = {
   updateQty: (menuItemId, quantity) => apiClient.patch(API_ENDPOINTS.CART_ITEM(menuItemId), { quantity }),
   removeItem: (menuItemId) => apiClient.delete(API_ENDPOINTS.CART_ITEM(menuItemId)),
   clear: () => apiClient.delete(API_ENDPOINTS.CART),
+  updatePacks: (payload) => apiClient.patch(API_ENDPOINTS.CART_PACKS, payload),
 };

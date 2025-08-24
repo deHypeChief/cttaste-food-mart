@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Button from "../../components/button";
 import { H1 } from "../../components/typography";
 import { MenueCard } from "../../components/vendor";
@@ -15,9 +15,10 @@ export default function VendorInfo() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [searchParams] = useSearchParams();
-    const { addItem, updateQty, items: cartItems, clear: clearCartDb } = useCart();
-    // Track quantities for each menu item by index
-    const [quantities, setQuantities] = useState({});
+    const { clear: clearCartDb, packsByVendor, createPack, deletePack, getPackItemQty, adjustPackItem } = useCart();
+    const [activePackId, setActivePackId] = useState('pack-1');
+    // Local mirror to force re-render on cart update (pack-specific quantities live in context)
+    // quantitiesVersion no longer needed after refactor
 
     // State for new review form
     const [newReview, setNewReview] = useState({
@@ -33,18 +34,16 @@ export default function VendorInfo() {
     const [commentsError, setCommentsError] = useState("");
     const { isAuthenticated } = useAuth();
 
-    const updateQuantity = (itemIndex, newQty) => {
-        setQuantities(prev => ({
-            ...prev,
-            [itemIndex]: newQty
-        }));
+    const updateQuantity = (menuItem, newQty) => {
+        if (!vendor?._id) return;
+        const menuItemId = menuItem._id;
+        const current = getPackItemQty(vendor._id, activePackId, menuItemId);
+        const delta = newQty - current;
+        if (delta === 0) return;
+        adjustPackItem({ vendorId: vendor._id, packId: activePackId, menuItemId, name: menuItem.name, price: menuItem.price, image: menuItem.image }, delta);
     };
 
-    const clearCart = () => {
-        setQuantities({});
-        // Also clear persisted cart so UI stays in sync after refresh
-        clearCartDb?.();
-    };
+    const clearCart = () => { clearCartDb?.(); };
 
     const handleReviewSubmit = async () => {
         if (!vendor?._id) return;
@@ -128,19 +127,45 @@ export default function VendorInfo() {
         } finally { setCommentsLoading(false); }
     };
 
-    // Keep menu quantities in sync with persisted cart on load/refresh
+    // Force update when switching packs
+    // trigger re-render by changing active pack state only
+
+    const vendorPacks = useMemo(() => (
+        packsByVendor[vendor?._id] || { 'pack-1': { id: 'pack-1', name: 'Pack 1' } }
+    ), [packsByVendor, vendor?._id]);
+
     useEffect(() => {
-        if (!menu?.length) {
-            setQuantities({});
-            return;
+        // ensure active pack exists
+        if (!vendor) return;
+        if (!vendorPacks[activePackId]) {
+            const first = Object.keys(vendorPacks)[0];
+            setActivePackId(first);
         }
-        const map = {};
-        menu.forEach((m, idx) => {
-            const found = cartItems?.find(ci => ci.menuItemId === m._id);
-            if (found) map[idx] = found.quantity || 0;
-        });
-        setQuantities(map);
-    }, [menu, cartItems]);
+    }, [vendor, vendorPacks, activePackId]);
+
+
+    const handlePackChange = (pid) => {
+        setActivePackId(pid);
+    };
+
+    const handleCreatePack = () => {
+        if (!vendor?._id) return;
+        const id = createPack(vendor._id);
+        if (id) setActivePackId(id);
+    };
+
+    const handleDeletePack = () => {
+        if (!vendor?._id) return;
+        const vendorPacksKeys = Object.keys(vendorPacks);
+        if (vendorPacksKeys.length <= 1) return; // don't delete last pack
+        if (!window.confirm('Delete this pack? Items will move to the first remaining pack.')) return;
+        deletePack(vendor._id, activePackId);
+        // After deletion, select first remaining pack
+        setTimeout(() => {
+            const fresh = Object.keys(packsByVendor[vendor._id] || {});
+            if (fresh.length) setActivePackId(fresh[0]);
+        }, 0);
+    };
 
     return (
         <div className="mx-5 md:mx-20 md:ml-24">
@@ -220,7 +245,7 @@ export default function VendorInfo() {
                         Fillter
                     </Button> */}
 
-                    <div className="flex items-center justify-between w-full  gap-5">
+                    <div className="flex items-center justify-between w-full  gap-5 flex-wrap">
                         {isAuthenticated && (
                             <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
                                 <DialogTrigger asChild>
@@ -292,6 +317,17 @@ export default function VendorInfo() {
                                 </DialogContent>
                             </Dialog>
                         )}
+                        <div className="flex items-center gap-2">
+                            <select className="border rounded px-2 py-2 text-sm" value={activePackId} onChange={(e) => handlePackChange(e.target.value)}>
+                                {Object.values(vendorPacks).map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                            <Button variant="outlineFade" className="px-2 py-2 text-xs" onClick={handleCreatePack}>+ Pack</Button>
+                            {Object.keys(vendorPacks).length > 1 && (
+                                <Button variant="outlineFade" className="px-2 py-2 text-xs text-red-600" onClick={handleDeletePack}>Del</Button>
+                            )}
+                        </div>
                         <Button icon="gg:trash" variant="outlineFade" className="px-0 py-3" onClick={clearCart}>
                             Clear Cart
                         </Button>
@@ -304,19 +340,26 @@ export default function VendorInfo() {
                     {!loading && !error && menu.length === 0 && (
                         <div className="col-span-4 text-center opacity-60">No menu items yet</div>
                     )}
-                    {menu.map((m, idx) => (
-                        <MenueCard
-                            key={m._id}
-                            itemName={m.name}
-                            price={m.price}
-                            image={m.image}
-                            quantity={quantities[idx] || 0}
-                            onQuantityChange={(newQty) => updateQuantity(idx, newQty)}
-                            onAdd={() => addItem({ vendorId: vendor?._id, menuItemId: m._id, name: m.name, price: m.price, image: m.image, quantity: 1 })}
-                            onUpdate={(newQty) => updateQty(m._id, newQty)}
-                            vendorOpen={vendor?.isCurrentlyOpen}
-                        />
-                    ))}
+            {menu.map((m) => {
+                        const qty = vendor?._id ? getPackItemQty(vendor._id, activePackId, m._id) : 0;
+                        return (
+                <div key={m._id} className="relative">
+                                <MenueCard
+                                    itemName={m.name}
+                                    price={m.price}
+                                    image={m.image}
+                                    quantity={qty}
+                                    onQuantityChange={(newQty) => updateQuantity(m, newQty)}
+                                    vendorOpen={vendor?.isCurrentlyOpen}
+                                />
+                                {qty > 0 && (
+                                    <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
+                                        {vendorPacks[activePackId]?.name || 'Pack'}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>
