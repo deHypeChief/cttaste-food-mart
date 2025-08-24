@@ -214,57 +214,62 @@ export default function Checkout() {
                         // itemCount not used in new message format
 
                         // Build WhatsApp message in the requested layout
+                        // Build message in the requested format (with emojis)
                         let msg = '';
-                        msg += `Order Content\n\n`;
-                        msg += `Order ID: ${orderId || '—'}\n\n`;
-                        msg += `Items Ordered:\n\n`;
+                        const vendorName = v?.restaurantName || 'VENDOR';
+                        msg += `🧾 ORDER FROM ${vendorName} 🍴\n`;
+                        msg += `📦 ORDER DETAILS\n`;
+                        msg += `🔖 Order ID : ${orderId || '—'}\n`;
+                        msg += `--•--\n`;
 
-                        // Insert pack grouping in message
+                        // Packs first (use packGroups if available for this vendor)
                         const vendorPackGroups = packGroups[p.vendorId] || {};
                         const orderedPackIds = Object.keys(vendorPackGroups).sort();
                         if (orderedPackIds.length) {
-                            orderedPackIds.forEach((pid, pidx) => {
+                            orderedPackIds.forEach((pid) => {
                                 const def = packsByVendor[p.vendorId]?.[pid];
-                                msg += `---${def?.name || pid}---\n\n`;
-                                const list = vendorPackGroups[pid];
-                                list.forEach((it, idx) => {
-                                    msg += `${it.name} × ${it.quantity}\n\n`;
-                                    if (idx < list.length - 1) msg += `________________________\n\n`;
+                                msg += `📦 ${def?.name || pid}\n`;
+                                msg += `--•--\n`;
+                                const list = vendorPackGroups[pid] || [];
+                                list.forEach((it) => {
+                                    msg += `🍽️ ${it.name} | qty:${it.quantity}\n`;
                                 });
-                                if (pidx < orderedPackIds.length - 1) msg += `\n`;
+                                msg += `\n`;
                             });
-                        } else {
-                            for (let idx = 0; idx < (p.items || []).length; idx++) {
-                                const it = p.items[idx];
-                                msg += `${it.name} × ${it.quantity}\n\n`;
-                                if (idx < (p.items || []).length - 1) {
-                                    msg += `________________________\n\n`;
-                                }
-                            }
+                        } else if (p.items && p.items.length) {
+                            // no packs: list plain items
+                            msg += `--•--\n`;
+                            p.items.forEach((it) => {
+                                msg += `🍽️ ${it.name} | qty:${it.quantity}\n`;
+                            });
+                            msg += `\n`;
                         }
 
-                        msg += `Pricing\n\n`;
-                        msg += `Subtotal: ₦${vendorSubtotal.toLocaleString()}\n\n`;
-                        msg += `Delivery Price: ₦${deliveryPrice.toLocaleString()}\n\n`;
-                        msg += `Total Price: ₦${vendorTotal.toLocaleString()}\n\n`;
+                        // Totals
+                        msg += `SUB TOTAL : ₦${vendorSubtotal.toLocaleString()} 💰\n`;
+                        msg += `DELIVERY PRICE : ₦${deliveryPrice.toLocaleString()} 🚚\n`;
+                        msg += `TOTAL PRICE : ₦${vendorTotal.toLocaleString()} ✅\n`;
+                        msg += `------ CUSTOMER DETAILS 👤 ------\n`;
+                        msg += `👤 Name : ${customer.name}\n`;
+                        if (p.deliveryMode === 'doorstep') {
+                            msg += `📍 Location : ${p.deliveryLocation || ''}\n`;
+                        }
+                        msg += `🏠 Address : ${p.address || customer.address || '—'}\n`;
+                        msg += `📞 Phone number : ${customer.phone}\n`;
 
-                        msg += `Customer Details\n\n`;
-                        msg += `Name: ${customer.name}\n\n`;
-                        // Use selected delivery location for 'Location' when available
-                        msg += `Location: ${p.deliveryLocation || ''}\n\n`;
-                        msg += `__________________________________________________________________\n`;
-                        msg += `Address: ${p.address || customer.address || '—'}\n\n`;
-                        msg += `Phone number: ${customer.phone}\n`;
-
-                        if (deliveryPrice && p.deliveryMode === 'doorstep') {
-                            // explicit note to vendor about delivery and fee
-                            msg += `\n(Delivery fee included: ₦${deliveryPrice.toLocaleString()})\n`;
+                        // Delivery instructions when doorstep
+                        if (p.deliveryMode === 'doorstep' && p.deliveryInstructions) {
+                            msg += `📝 Delivery Instructions : ${p.deliveryInstructions}\n`;
                         }
 
-                        if (orderId) {
-                            const vorderUrl = `${host}/vorder/${orderId}`;
-                            msg += `\nOrder summary: ${vorderUrl}\n`;
-                        }
+                        // Price confirmation link (fall back to vorder if no price route known)
+                        let priceUrl = `${host}/vorder/${orderId}`;
+                        try {
+                            const vendorKey = v?._id || v?.id || p.vendorId || '';
+                            if (vendorKey && orderId) priceUrl = `https://cttaste.com/price/${vendorKey}/${orderId}`;
+                        } catch { /* ignore and use vorder */ }
+                        msg += `🔗 PRICE CONFIRMATION\n`;
+                        msg += `${priceUrl}\n`;
 
                         const wa = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                         // Persist + log before redirect so user can see it
