@@ -31,6 +31,8 @@ const OrdersValidator = {
   deliveryLocation: t.Optional(t.String()),
   deliveryPrice: t.Optional(t.Number()),
   deliveryInstructions: t.Optional(t.String()),
+  guestName: t.Optional(t.String()),
+  guestPhone: t.Optional(t.String()),
       notes: t.Optional(t.String())
     }),
     detail: { tags: ['Orders'] }
@@ -187,6 +189,73 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
       }
     })
   );
+
+  // Public endpoint to place guest orders (no user session required)
+  ordersRoutes.post('/guest', async ({ set, body }) => {
+    try {
+      const { vendorId, items, address, notes, deliveryMode, deliveryLocation, deliveryPrice, deliveryInstructions, guestName, guestPhone } = body as any;
+
+      if (!vendorId) return ErrorHandler.ValidationError(set, 'vendorId is required');
+      if (!Array.isArray(items) || !items.length) return ErrorHandler.ValidationError(set, 'items are required');
+      if (!address || !String(address).trim()) return ErrorHandler.ValidationError(set, 'address is required');
+      if (!guestName || !String(guestName).trim() || !guestPhone || !String(guestPhone).trim()) return ErrorHandler.ValidationError(set, 'guestName and guestPhone are required');
+
+      const vendor = await Vendor.findById(vendorId);
+      if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
+
+      const total = items.reduce((sum: number, it: any) => sum + (Number(it.price) * Number(it.quantity)), 0);
+
+      const order = await Order.create({
+        orderNumber: generateOrderNumber(),
+        vendorId: new mongoose.Types.ObjectId(vendorId),
+        vendorName: vendor.restaurantName,
+        vendorAvatar: vendor.avatar,
+        // guest fields
+        guestName: guestName,
+        guestPhone: guestPhone,
+        items: items.map((i: any) => ({
+          menuItemId: new mongoose.Types.ObjectId(i.menuItemId),
+          name: i.name,
+          price: Number(i.price),
+          quantity: Number(i.quantity),
+          image: i.image,
+        })),
+        total,
+        address,
+        deliveryMode: deliveryMode || 'pickup',
+        deliveryLocation,
+        deliveryPrice: typeof deliveryPrice === 'number' ? deliveryPrice : undefined,
+        deliveryInstructions,
+        status: 'Pending',
+        notes,
+      });
+
+      // Send vendor email notification if configured (use guestName)
+      try {
+        if (vendor.orderNotifications && vendor.emailNotifications) {
+          const sessionClient = await (await import('../../auth/_model')).SessionClient.findById(vendor.sessionClientId);
+          const vendorEmail = sessionClient?.email || null;
+          if (vendorEmail) {
+            const template = await orderNotification({
+              orderNumber: order.orderNumber,
+              vendorName: vendor.restaurantName,
+              customerName: guestName || 'Guest',
+              total: order.total,
+              items: order.items.map((it: any) => ({ name: it.name, quantity: it.quantity, price: it.price })),
+              orderId: String(order._id)
+            });
+            EmailHandler.send(vendorEmail, `New order ${order.orderNumber}`, template).catch(() => { /* swallow email errors */ });
+          }
+        }
+      } catch (e) {
+        // ignore notification errors
+      }
+
+      return SuccessHandler(set, 'Order placed successfully', { order }, true);
+    } catch (error) {
+      throw ErrorHandler.ServerError(set, 'Error placing guest order', error);
+    }
+  }, OrdersValidator.place);
 
 // Public order endpoints (quick preview links used in WhatsApp messages)
 const publicOrders = new Elysia({ prefix: '/orders/public' })

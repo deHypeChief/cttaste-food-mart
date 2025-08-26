@@ -6,6 +6,11 @@ export const ordersService = {
   return apiClient.post(API_ENDPOINTS.ORDERS_PLACE, payload);
   },
 
+  // Place guest order (no user session)
+  async placeGuestOrder(payload) {
+    return apiClient.post('/orders/guest', payload);
+  },
+
   // User: list own orders (history)
   async listUserOrders(params = {}) {
     return apiClient.get('/orders', { params });

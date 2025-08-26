@@ -30,10 +30,16 @@ export const useCartStore = create(devtools((set, get) => ({
   // initialize from local storage
   initFromLocal: () => {
     const data = readLocal('cartPackData', {});
+    const items = readLocal('cartItems', []);
+    const count = (items || []).reduce((s, it) => s + Number(it.quantity || 0), 0);
+    const total = (items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
     set({
       packsByVendor: data.packsByVendor || {},
       assignments: data.assignments || {},
       packItemQuantities: data.packItemQuantities || {},
+      items,
+      count,
+      total,
     });
   },
 
@@ -138,7 +144,14 @@ export const useCartStore = create(devtools((set, get) => ({
   // server interactions
   refresh: async () => {
     const s = get();
-    if (s.userType !== 'customer') { set({ items: [], count: 0, total: 0 }); return; }
+    if (s.userType !== 'customer') {
+      // load local cart for guests
+      const items = readLocal('cartItems', []);
+      const count = (items || []).reduce((s2, it) => s2 + Number(it.quantity || 0), 0);
+      const total = (items || []).reduce((s2, it) => s2 + Number(it.price || 0) * Number(it.quantity || 0), 0);
+      set({ items, count, total });
+      return;
+    }
     set({ loading: true });
     try {
       const res = await cartService.get();
@@ -196,12 +209,35 @@ export const useCartStore = create(devtools((set, get) => ({
   },
 
   updateQty: async (menuItemId, quantity) => {
+    const s = get();
+    if (s.userType !== 'customer') {
+      const items = (s.items || []).map(it => it.menuItemId === menuItemId ? { ...it, quantity } : it).filter(Boolean);
+      const count = items.reduce((s2, it) => s2 + Number(it.quantity || 0), 0);
+      const total = items.reduce((s2, it) => s2 + Number(it.price || 0) * Number(it.quantity || 0), 0);
+      writeLocal('cartItems', items);
+      set({ items, count, total });
+      return { data: { cart: { items, count, total } } };
+    }
     const res = await cartService.updateQty(menuItemId, quantity);
     set({ items: res?.data?.cart?.items || [], count: res?.data?.count || 0, total: res?.data?.total || 0 });
     return res;
   },
 
   removeItem: async (menuItemId) => {
+    const s = get();
+    if (s.userType !== 'customer') {
+      const items = (s.items || []).filter(i => i.menuItemId !== menuItemId);
+      const count = items.reduce((s2, it) => s2 + Number(it.quantity || 0), 0);
+      const total = items.reduce((s2, it) => s2 + Number(it.price || 0) * Number(it.quantity || 0), 0);
+      writeLocal('cartItems', items);
+      set({ items, count, total });
+      if (s.assignments[menuItemId]) {
+        const { [menuItemId]: _, ...rest } = s.assignments;
+        set({ assignments: rest });
+        setTimeout(() => get().persistPacks(get().packsByVendor, rest), 0);
+      }
+      return { data: { cart: { items, count, total } } };
+    }
     const res = await cartService.removeItem(menuItemId);
     set({ items: res?.data?.cart?.items || [], count: res?.data?.count || 0, total: res?.data?.total || 0 });
     const state = get();
@@ -238,7 +274,8 @@ export const useCartStore = create(devtools((set, get) => ({
     });
     const serverItem = (get().items || []).find(i => i.menuItemId === menuItemId);
     if (!serverItem && totalForItem > 0) {
-      await cartService.addItem({ vendorId, menuItemId, name, price, image, quantity: totalForItem });
+      // Use store addItem (handles guest/local vs server)
+      await get().addItem({ vendorId, menuItemId, name, price, image, quantity: totalForItem });
       await get().refresh();
     } else if (serverItem) {
       const newQty = (serverItem.quantity || 0) + delta;
@@ -264,6 +301,24 @@ export const useCartStore = create(devtools((set, get) => ({
   },
 
   addItem: async ({ vendorId, menuItemId, name, price, image, quantity = 1, packId }) => {
+    const s = get();
+    if (s.userType !== 'customer') {
+      // guest local cart: update local items array
+      const items = [...(s.items || [])];
+      const existing = items.find(i => i.menuItemId === menuItemId);
+      if (existing) {
+        existing.quantity = Number(existing.quantity || 0) + Number(quantity || 0);
+      } else {
+        items.push({ vendorId, menuItemId, name, price, image, quantity });
+      }
+      const count = items.reduce((s2, it) => s2 + Number(it.quantity || 0), 0);
+      const total = items.reduce((s2, it) => s2 + Number(it.price || 0) * Number(it.quantity || 0), 0);
+      writeLocal('cartItems', items);
+      set({ items, count, total });
+      if (vendorId) get().ensureDefaultPack(vendorId);
+      if (packId) get().assignItemToPack(menuItemId, vendorId, packId);
+      return { data: { cart: { items, count, total } } };
+    }
     const res = await cartService.addItem({ vendorId, menuItemId, name, price, image, quantity });
     set({ items: res?.data?.cart?.items || [], count: res?.data?.count || 0, total: res?.data?.total || 0 });
     if (vendorId) get().ensureDefaultPack(vendorId);
@@ -272,6 +327,14 @@ export const useCartStore = create(devtools((set, get) => ({
   },
 
   clear: async () => {
+    const s = get();
+    if (s.userType !== 'customer') {
+      writeLocal('cartItems', []);
+      set({ items: [], count: 0, total: 0, assignments: {}, packItemQuantities: {}, packsByVendor: {} });
+      try { localStorage.removeItem('cartPackData'); } catch { /* ignore */ }
+      try { await get().persistPacks(); } catch { /* ignore */ }
+      return { data: { cart: { items: [], count: 0, total: 0 } } };
+    }
     const res = await cartService.clear();
     // clear local store and ensure pack state is persisted as cleared
     set({ items: [], count: 0, total: 0, assignments: {}, packItemQuantities: {}, packsByVendor: {} });

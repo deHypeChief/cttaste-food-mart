@@ -8,7 +8,7 @@ import { ordersService } from "../../api/orders";
 
 export default function Checkout() {
     const navigate = useNavigate();
-    const { user, isAuthenticated, userType, isLoading } = useAuth();
+    const { user, isAuthenticated, userType } = useAuth();
     const { items, loading: cartLoading, clear, packsByVendor, assignments, packItemQuantities } = useCart();
     // (Deprecated) multi-link fallback removed; we now redirect directly to first WhatsApp link
 
@@ -114,23 +114,33 @@ export default function Checkout() {
         address: user?.user?.address || '',
     };
 
-    // Only signed-in customers can access this page
-    useEffect(() => {
-        if (isLoading) return; // wait until auth resolves
-        const isCustomer = isAuthenticated && userType === 'customer';
-        if (!isCustomer) {
-            navigate('/auth/login?type=customer', { replace: true });
-        }
-    }, [isAuthenticated, userType, isLoading, navigate]);
+    // Guest fields for unauthenticated users
+    const [guestName, setGuestName] = useState('');
+    const [guestPhone, setGuestPhone] = useState('');
+    const [guestAddress, setGuestAddress] = useState('');
+
+    // Allow guest checkout: do not redirect unauthenticated customers here.
+    // Guests will be prompted for name/phone/address below when placing orders.
 
     // Removed auto-redirect to /cart so we can jump straight to WhatsApp after ordering.
 
     const placeOrders = async () => {
-        if (!isAuthenticated || userType !== 'customer') return;
-        // Validate address for doorstep
-        if (deliveryOption === 'doorstep' && !customer.address.trim()) {
-            alert('Please add your delivery address in your profile before placing a doorstep delivery.');
+        // Validate for guest vs authenticated
+        const isCustomer = isAuthenticated && userType === 'customer';
+        // If a logged-in customer has no profile address, set warning and scroll to it
+        if (isCustomer && !customer.address?.trim()) {
+            try {
+                const el = document.getElementById('checkout-address-warning');
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch {}
             return;
+        }
+        if (!isCustomer) {
+            // require guest name and phone
+            if (!guestName.trim() || !guestPhone.trim()) {
+                alert('Please provide your name and phone number to place an order as a guest.');
+                return;
+            }
         }
         try {
             const payloads = [];
@@ -138,10 +148,10 @@ export default function Checkout() {
                 if (!vendorItems?.length) continue;
                 const vinfo = vendorsInfo[vendorId];
                 const addr = deliveryOption === 'doorstep'
-                    ? customer.address
+                    ? (isCustomer ? customer.address : (guestAddress || customer.address))
                     : (vinfo?.address || vinfo?.location || 'Pickup at vendor');
                 const sel = deliverySelections[vendorId];
-                payloads.push({
+                const base = {
                     vendorId,
                     address: addr,
                     deliveryMode: deliveryOption,
@@ -155,7 +165,13 @@ export default function Checkout() {
                         quantity: Number(it.quantity),
                         image: it.image,
                     })),
-                });
+                };
+                if (!isCustomer) {
+                    base.guestName = guestName || 'Guest';
+                    base.guestPhone = guestPhone || '—';
+                    if (guestAddress && guestAddress.trim()) base.guestAddress = guestAddress.trim();
+                }
+                payloads.push(base);
             }
             if (!payloads.length) return;
 
@@ -173,7 +189,16 @@ export default function Checkout() {
             }
             
             // Place each vendor order separately
-            const responses = await Promise.all(payloads.map((p) => ordersService.placeOrder(p)));
+            // Place orders: use authenticated endpoint when signed in, otherwise use guest endpoint
+            const responses = [];
+            for (const p of payloads) {
+                if (isCustomer) {
+                    responses.push(await ordersService.placeOrder(p));
+                } else {
+                    // p must include guestName and guestPhone (collected below)
+                    responses.push(await ordersService.placeGuestOrder(p));
+                }
+            }
             // After orders are created, build the first WhatsApp link and redirect immediately
             try {
                 const host = window.location.origin;
@@ -249,13 +274,19 @@ export default function Checkout() {
                         msg += `SUB TOTAL : ₦${vendorSubtotal.toLocaleString()} 💰\n`;
                         msg += `DELIVERY PRICE : ₦${deliveryPrice.toLocaleString()} 🚚\n`;
                         msg += `TOTAL PRICE : ₦${vendorTotal.toLocaleString()} ✅\n`;
+                        // Prefer guest info from payload when available, otherwise fall back to authenticated customer
+                        const custName = p.guestName || customer.name;
+                        const custPhone = p.guestPhone || customer.phone;
+                        // For authenticated customers, prefer their profile address.
+                        // For guests, prefer guestAddress then the payload address (which may be vendor location for pickup).
+                        const custAddress = (isCustomer ? (customer.address || '—') : (p.guestAddress || p.address || customer.address || '—'));
                         msg += `------ CUSTOMER DETAILS 👤 ------\n`;
-                        msg += `👤 Name : ${customer.name}\n`;
+                        msg += `👤 Name : ${custName}\n`;
                         if (p.deliveryMode === 'doorstep') {
                             msg += `📍 Location : ${p.deliveryLocation || ''}\n`;
                         }
-                        msg += `🏠 Address : ${p.address || customer.address || '—'}\n`;
-                        msg += `📞 Phone number : ${customer.phone}\n`;
+                        msg += `🏠 Address : ${custAddress}\n`;
+                        msg += `📞 Phone number : ${custPhone}\n`;
 
                         // Delivery instructions when doorstep
                         if (p.deliveryMode === 'doorstep' && p.deliveryInstructions) {
@@ -323,14 +354,33 @@ export default function Checkout() {
                                 <Link to="/user/profile" className="font-medium text-sm text-primary">Edit Customer Info</Link>
                             </div>
 
-                            <div className="space-y-3 pt-5">
-                                <h1 className="text-xl font-medium">{customer.name}</h1>
-                                <div>
-                                    <p className="text-[1rem] font-medium opacity-60">{customer.phone}</p>
-                                    <p className="text-[1rem] font-medium opacity-60">{customer.email}</p>
-                                    <p className="text-[1rem] font-medium opacity-60">{customer.address || 'No address set'}</p>
-                                </div>
-                            </div>
+                                    <div className="space-y-3 pt-5">
+                                        {isAuthenticated && userType === 'customer' ? (
+                                            <>
+                                                <h1 className="text-xl font-medium">{customer.name}</h1>
+                                                <div>
+                                                    <p className="text-[1rem] font-medium opacity-60">{customer.phone}</p>
+                                                    <p className="text-[1rem] font-medium opacity-60">{customer.email}</p>
+                                                    <p className="text-[1rem] font-medium opacity-60">{customer.address || 'No address set'}</p>
+                                                    {!customer.address?.trim() && (
+                                                        <div id="checkout-address-warning" className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                                            <p className="text-sm text-yellow-800">We need your delivery address to place orders. Please update your profile with your address.</p>
+                                                            <div className="mt-2">
+                                                                <button onClick={() => navigate('/user/profile')} className="text-sm font-medium text-primary">Update profile</button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <p className="text-sm opacity-70">You're checking out as a guest. Provide your contact details so the vendor can reach you.</p>
+                                                <input className="w-full border px-3 py-2 rounded" placeholder="Full name" value={guestName} onChange={(e) => setGuestName(e.target.value)} />
+                                                <input className="w-full border px-3 py-2 rounded" placeholder="Phone number" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
+                                                <input className="w-full border px-3 py-2 rounded" placeholder="Delivery address (optional)" value={guestAddress} onChange={(e) => setGuestAddress(e.target.value)} />
+                                            </div>
+                                        )}
+                                    </div>
                         </div>
 
                         <div className="bg-white p-7 rounded-xl ">
@@ -470,7 +520,16 @@ export default function Checkout() {
                                 <h3 className="font-semibold text-2xl">Total</h3>
                                 <h3 className="font-semibold text-2xl">₦ {grandTotal.toLocaleString()}</h3>
                             </div>
-                            <Button className="w-full px-6 py-3" onClick={placeOrders} disabled={!items?.length || cartLoading || !isAuthenticated || userType !== 'customer'}>
+                            <Button
+                                className="w-full px-6 py-3"
+                                onClick={placeOrders}
+                                disabled={
+                                    !items?.length || cartLoading || (
+                                        !(isAuthenticated && userType === 'customer') && // guest path
+                                        !(guestName.trim() && guestPhone.trim()) // guests must provide name+phone
+                                    ) || (isAuthenticated && userType === 'customer' && !customer.address?.trim())
+                                }
+                            >
                                 Make Order
                             </Button>
                         </div>

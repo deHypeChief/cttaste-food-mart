@@ -14,7 +14,9 @@ export interface IOrder extends mongoose.Document {
   vendorPublicKey?: string;
   vendorName?: string;
   vendorAvatar?: string;
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId; // optional to support guest orders
+  guestName?: string;
+  guestPhone?: string;
   items: IOrderItem[];
   total: number;
   address: string;
@@ -39,7 +41,9 @@ const orderItemSchema = new mongoose.Schema<IOrderItem>({
 const orderSchema = new mongoose.Schema<IOrder>({
   orderNumber: { type: String, unique: true, index: true },
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false, index: true },
+  guestName: { type: String },
+  guestPhone: { type: String },
   items: { type: [orderItemSchema], required: true },
   total: { type: Number, required: true },
   address: { type: String, required: true },

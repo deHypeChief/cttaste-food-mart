@@ -114,8 +114,11 @@ export default function Explore() {
 
     const activeVendor = featured[current];
     const activeTitle = activeVendor?.restaurantName || "Discover great vendors near you";
-    const heroBgStyle = activeVendor?.banner
-        ? { backgroundImage: `url(${activeVendor.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    const defaultHeroImage = '/portrait-man-practicing-his-profession-celebrate-international-labour-day.jpg';
+    // Use vendor banner when available, otherwise show the provided portrait image when there are no vendors
+    const bg = activeVendor?.banner || ((vendors.length === 0 && !loading) ? defaultHeroImage : undefined);
+    const heroBgStyle = bg
+        ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
         : {};
 
     const goToVendor = (v) => {
