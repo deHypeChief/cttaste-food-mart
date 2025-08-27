@@ -69,7 +69,7 @@ export default function Checkout() {
                     }
                 });
                 setVendorsInfo(next);
-            } catch { /* ignore */ }
+            } catch (err) { /* ignore */ }
         })();
         return () => { alive = false; };
     }, [groups, vendorsInfo]);
@@ -132,13 +132,18 @@ export default function Checkout() {
             try {
                 const el = document.getElementById('checkout-address-warning');
                 el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } catch {}
+            } catch (err) { /* ignore */ }
             return;
         }
         if (!isCustomer) {
             // require guest name and phone
             if (!guestName.trim() || !guestPhone.trim()) {
                 alert('Please provide your name and phone number to place an order as a guest.');
+                return;
+            }
+            // require guest address for doorstep delivery
+            if (deliveryOption === 'doorstep' && !guestAddress.trim()) {
+                alert('Please provide a delivery address to place a doorstep delivery as a guest.');
                 return;
             }
         }
@@ -295,10 +300,10 @@ export default function Checkout() {
 
                         // Price confirmation link (fall back to vorder if no price route known)
                         let priceUrl = `${host}/vorder/${orderId}`;
-                        try {
-                            const vendorKey = v?._id || v?.id || p.vendorId || '';
-                            if (vendorKey && orderId) priceUrl = `https://cttaste.com/price/${vendorKey}/${orderId}`;
-                        } catch { /* ignore and use vorder */ }
+                        // try {
+                        //     const vendorKey = v?._id || v?.id || p.vendorId || '';
+                        //     if (vendorKey && orderId) priceUrl = `${host}/vorder/${vendorKey}/${orderId}`;
+                        // } catch { /* ignore and use vorder */ }
                         msg += `🔗 PRICE CONFIRMATION\n`;
                         msg += `${priceUrl}\n`;
 
@@ -377,7 +382,7 @@ export default function Checkout() {
                                                 <p className="text-sm opacity-70">You're checking out as a guest. Provide your contact details so the vendor can reach you.</p>
                                                 <input className="w-full border px-3 py-2 rounded" placeholder="Full name" value={guestName} onChange={(e) => setGuestName(e.target.value)} />
                                                 <input className="w-full border px-3 py-2 rounded" placeholder="Phone number" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
-                                                <input className="w-full border px-3 py-2 rounded" placeholder="Delivery address (optional)" value={guestAddress} onChange={(e) => setGuestAddress(e.target.value)} />
+                                                <input className="w-full border px-3 py-2 rounded" placeholder="Delivery address (required for doorstep delivery)" value={guestAddress} onChange={(e) => setGuestAddress(e.target.value)} />
                                             </div>
                                         )}
                                     </div>
@@ -526,7 +531,7 @@ export default function Checkout() {
                                 disabled={
                                     !items?.length || cartLoading || (
                                         !(isAuthenticated && userType === 'customer') && // guest path
-                                        !(guestName.trim() && guestPhone.trim()) // guests must provide name+phone
+                                        !(guestName.trim() && guestPhone.trim() && (deliveryOption === 'doorstep' ? guestAddress.trim() : true)) // guests must provide name+phone and address for doorstep
                                     ) || (isAuthenticated && userType === 'customer' && !customer.address?.trim())
                                 }
                             >
