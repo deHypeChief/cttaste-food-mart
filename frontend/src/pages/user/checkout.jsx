@@ -352,8 +352,8 @@ export default function Checkout() {
                 </div>
 
                 <div className="mt-10 md:grid grid-cols-[1fr_0.5fr] gap-10 space-y-10 md:space-y-0">
-                    <div className="space-y-5">
-                        <div className="bg-white p-7 rounded-xl ">
+                    <div className="flex flex-col space-y-5">
+                        <div className="bg-white p-7 rounded-xl mt-5 md:mt-0 order-3 md:order-1">
                             <div className="border-b border-border pb-3 flex justify-between items-center ">
                                 <p className="font-semibold text-lg">Customer Info</p>
                                 <Link to="/user/profile" className="font-medium text-sm text-primary">Edit Customer Info</Link>
@@ -388,7 +388,7 @@ export default function Checkout() {
                                     </div>
                         </div>
 
-                        <div className="bg-white p-7 rounded-xl ">
+                        <div className="bg-white p-7 rounded-xl order-1 md:order-2">
                             <div className="border-b border-border pb-3 flex justify-between items-center ">
                                 <p className="font-semibold text-lg">Pick Up Location</p>
                             </div>
@@ -410,7 +410,7 @@ export default function Checkout() {
                             </div>
                         </div>
 
-                        <div className="bg-white p-7 rounded-xl ">
+                        <div className="bg-white p-7 rounded-xl order-2 md:order-3">
                             <div className="border-b border-border pb-3 flex justify-between items-center ">
                                 <p className="font-semibold text-lg">Delivery Summary</p>
                                 {/* Optional: link to edit cart */}
