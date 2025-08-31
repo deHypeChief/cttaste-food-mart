@@ -290,9 +290,9 @@ export default function Settings() {
                                         )}
                                     </div>
                                     <div>
-                                        <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
+                                        <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
                                         <Button variant="outlineFade" size="sm" onClick={() => avatarInputRef.current?.click()}>Upload Logo</Button>
-                                        <p className="text-xs text-gray-500 mt-1">PNG or JPG up to 2MB</p>
+                                        <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF up to 2MB</p>
                                     </div>
                                 </div>
 
@@ -302,10 +302,10 @@ export default function Settings() {
                                     ) : (
                                         <div className="text-gray-500 text-sm flex items-center gap-2"><Icon icon="majesticons:image-line"/> Banner image</div>
                                     )}
-                                    <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
+                                    <input ref={bannerInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
                                     <Button variant="outlineFade" size="sm" className="absolute bottom-2 right-2" onClick={() => bannerInputRef.current?.click()}>Upload Banner</Button>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">PNG or JPG up to 2MB</p>
+                                <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF up to 2MB</p>
                                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div>
                                         <h3 className="font-medium text-gray-900">Restaurant Availability</h3>

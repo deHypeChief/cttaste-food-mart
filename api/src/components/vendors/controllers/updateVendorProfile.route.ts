@@ -108,13 +108,22 @@ const updateVendorProfile = new Elysia()
             const file = formData.get('image') as File;
             if (!file) return ErrorHandler.ValidationError(set, 'Image file is required');
 
+            // Allow common image types and HEIC/HEIF (browsers may omit MIME for HEIC)
+            const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'];
+            if (file.type && !allowed.includes(file.type.toLowerCase())) {
+                const name = (file.name || '').toLowerCase();
+                if (!(name.endsWith('.heic') || name.endsWith('.heif'))) {
+                    return ErrorHandler.ValidationError(set, 'Unsupported image format');
+                }
+            }
+
             // Lazy import cloudinary config to avoid top-level dependency here
             const cloudinary = (await import('../../../configs/cloudinary.config')).default;
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             const upload = await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_stream(
-                    { folder: 'cttaste/vendors/banner', transformation: [{ width: 1600, height: 600, crop: 'limit' }], resource_type: 'image' },
+                    { folder: 'cttaste/vendors/banner', transformation: [{ width: 1600, height: 600, crop: 'limit' }], resource_type: 'auto' },
                     (error, result) => {
                         if (error) reject(error); else resolve(result);
                     }
@@ -138,12 +147,20 @@ const updateVendorProfile = new Elysia()
             const file = formData.get('image') as File;
             if (!file) return ErrorHandler.ValidationError(set, 'Image file is required');
 
+            const allowed2 = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'];
+            if (file.type && !allowed2.includes(file.type.toLowerCase())) {
+                const name2 = (file.name || '').toLowerCase();
+                if (!(name2.endsWith('.heic') || name2.endsWith('.heif'))) {
+                    return ErrorHandler.ValidationError(set, 'Unsupported image format');
+                }
+            }
+
             const cloudinary = (await import('../../../configs/cloudinary.config')).default;
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             const upload = await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_stream(
-                    { folder: 'cttaste/vendors/avatar', transformation: [{ width: 300, height: 300, crop: 'limit' }], resource_type: 'image' },
+                    { folder: 'cttaste/vendors/avatar', transformation: [{ width: 300, height: 300, crop: 'limit' }], resource_type: 'auto' },
                     (error, result) => { if (error) reject(error); else resolve(result); }
                 ).end(buffer);
             });

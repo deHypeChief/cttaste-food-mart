@@ -343,14 +343,14 @@ export default function MenuList() {
                         <p className="text-sm text-gray-700">
                           <span className="text-primary font-medium">Click to upload</span> or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500">PNG, JPG up to 1MB</p>
+                        <p className="text-xs text-gray-500">PNG, JPG, HEIC/HEIF up to 1MB</p>
                       </div>
                     </div>
                   )}
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.heic,.heif"
                     className="hidden"
                     onChange={(e) => onSelectImageNew(e.target.files?.[0])}
                   />

@@ -98,6 +98,16 @@ const menuRoutes = new Elysia({ prefix: '/menu' })
                 return ErrorHandler.ValidationError(set, 'Image exceeds 1MB limit');
             }
 
+            // Basic MIME allowance: accept typical image types and HEIC/HEIF
+            const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'];
+            if (file.type && !allowed.includes(file.type.toLowerCase())) {
+                // Some browsers set empty type for HEIC/HEIF; we allow if extension present in filename
+                const name = (file.name || '').toLowerCase();
+                if (!(name.endsWith('.heic') || name.endsWith('.heif'))) {
+                    return ErrorHandler.ValidationError(set, 'Unsupported image format');
+                }
+            }
+
             // Convert File to buffer for Cloudinary
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
@@ -106,10 +116,11 @@ const menuRoutes = new Elysia({ prefix: '/menu' })
             const upload = await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_stream(
                     {
-                        folder: 'cttaste/menu',
-                        transformation: [{ width: 800, height: 800, crop: 'limit' }],
-                        resource_type: 'image'
-                    },
+                            folder: 'cttaste/menu',
+                            transformation: [{ width: 800, height: 800, crop: 'limit' }],
+                            // allow Cloudinary to detect/convert HEIC/HEIF by using 'auto'
+                            resource_type: 'auto'
+                        },
                     (error, result) => {
                         if (error) {
                             console.error('Cloudinary upload error:', error);
