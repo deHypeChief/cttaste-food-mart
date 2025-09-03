@@ -350,7 +350,7 @@ export default function MenuList() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,.heic,.heif"
+                    accept="image/*,.heic,.heif,.avif"
                     className="hidden"
                     onChange={(e) => onSelectImageNew(e.target.files?.[0])}
                   />

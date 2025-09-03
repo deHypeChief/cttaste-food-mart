@@ -99,11 +99,15 @@ const menuRoutes = new Elysia({ prefix: '/menu' })
             }
 
             // Basic MIME allowance: accept typical image types and HEIC/HEIF
-            const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'];
+            // Expanded list to cover iOS & Android screenshot/photo formats (PNG, JPEG, HEIC/HEIF, sequences, AVIF, WebP)
+            const allowed = [
+                'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif',
+                'image/heic-sequence', 'image/heif-sequence', 'image/avif'
+            ];
             if (file.type && !allowed.includes(file.type.toLowerCase())) {
                 // Some browsers set empty type for HEIC/HEIF; we allow if extension present in filename
                 const name = (file.name || '').toLowerCase();
-                if (!(name.endsWith('.heic') || name.endsWith('.heif'))) {
+                if (!(name.endsWith('.heic') || name.endsWith('.heif') || name.endsWith('.avif'))) {
                     return ErrorHandler.ValidationError(set, 'Unsupported image format');
                 }
             }

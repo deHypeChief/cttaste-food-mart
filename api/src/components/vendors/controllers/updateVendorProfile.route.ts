@@ -109,10 +109,13 @@ const updateVendorProfile = new Elysia()
             if (!file) return ErrorHandler.ValidationError(set, 'Image file is required');
 
             // Allow common image types and HEIC/HEIF (browsers may omit MIME for HEIC)
-            const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'];
+            const allowed = [
+                'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif',
+                'image/heic-sequence', 'image/heif-sequence', 'image/avif'
+            ];
             if (file.type && !allowed.includes(file.type.toLowerCase())) {
                 const name = (file.name || '').toLowerCase();
-                if (!(name.endsWith('.heic') || name.endsWith('.heif'))) {
+                if (!(name.endsWith('.heic') || name.endsWith('.heif') || name.endsWith('.avif'))) {
                     return ErrorHandler.ValidationError(set, 'Unsupported image format');
                 }
             }
@@ -147,10 +150,13 @@ const updateVendorProfile = new Elysia()
             const file = formData.get('image') as File;
             if (!file) return ErrorHandler.ValidationError(set, 'Image file is required');
 
-            const allowed2 = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'];
+            const allowed2 = [
+                'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif',
+                'image/heic-sequence', 'image/heif-sequence', 'image/avif'
+            ];
             if (file.type && !allowed2.includes(file.type.toLowerCase())) {
                 const name2 = (file.name || '').toLowerCase();
-                if (!(name2.endsWith('.heic') || name2.endsWith('.heif'))) {
+                if (!(name2.endsWith('.heic') || name2.endsWith('.heif') || name2.endsWith('.avif'))) {
                     return ErrorHandler.ValidationError(set, 'Unsupported image format');
                 }
             }

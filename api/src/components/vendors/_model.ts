@@ -21,6 +21,8 @@ export interface IVendor {
     preparationTime?: number;
     currency?: string;
     taxRate?: number;
+    // Pricing for pack-based ordering (optional)
+    pricePerPack?: number;
     
     // Operational settings
     autoAcceptOrders?: boolean;
@@ -133,6 +135,10 @@ const vendorSchema = new mongoose.Schema<IVendor>({
     taxRate: {
         type: Number,
         default: 7.5, // percentage
+    },
+    pricePerPack: {
+        type: Number,
+        default: 0,
     },
     
     // Operational settings

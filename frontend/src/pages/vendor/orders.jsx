@@ -177,7 +177,12 @@ export default function VendorOrders() {
 							</div>
 							<div className="flex justify-between items-center">
 								<p className="text-lg font-semibold">Total</p>
-								<p className="text-lg font-bold">₦ {Number(detail.total).toLocaleString()}</p>
+								<div className="text-right">
+									{(detail.packCount > 0) && (
+										<p className="text-xs text-gray-600">Packs: {detail.packCount} @ ₦ {Number(detail.packsPrice / detail.packCount).toLocaleString()} = ₦ {Number(detail.packsPrice).toLocaleString()}</p>
+									)}
+									<p className="text-lg font-bold">₦ {Number(detail.total).toLocaleString()}</p>
+								</div>
 							</div>
 						</div>
 					) : (

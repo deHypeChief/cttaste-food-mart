@@ -55,6 +55,7 @@ export default function Orders() {
                     const totalQty = order.items ? order.items.reduce((s, it) => s + (it.quantity || 0), 0) : (order.quantity || 1);
                     const orderId = order.id || order._id;
                     const orderDate = order.createdAt || order.date;
+                    const packsLine = (order.packCount > 0) ? `${order.packCount} pack${order.packCount>1?'s':''} (₦${Number(order.packsPrice).toLocaleString()})` : '';
                     return (
                         <div key={orderId} className="p-4 py-0 rounded-xl md:flex items-center justify-between space-y-5 md:space-y-0 bg-gray-50">
                             <div className="flex gap-5">
@@ -79,9 +80,10 @@ export default function Orders() {
                             </div>
                             <div>
                                 <div className="flex md:flex-row-reverse justify-between items-center gap-2 md:gap-5">
-                                    <div className="md:w-[200px]">
-                                        <h3 className="font-semibold md:text-2xl md:text-right">N {order.total}</h3>
-                                        <p className="md:text-right font-medium text-lg opacity-60">Qty: {totalQty}</p>
+                                    <div className="md:w-[200px] text-right">
+                                        <h3 className="font-semibold md:text-2xl">N {order.total}</h3>
+                                        {packsLine && <p className="text-xs text-gray-600">{packsLine}</p>}
+                                        <p className="font-medium text-lg opacity-60">Qty: {totalQty}</p>
                                     </div>
                                     <div className="md:w-[200px]">
                                         <p className="md:text-right text-xs opacity-60">{order.status}</p>

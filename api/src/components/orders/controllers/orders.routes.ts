@@ -34,6 +34,7 @@ const OrdersValidator = {
   guestName: t.Optional(t.String()),
   guestPhone: t.Optional(t.String()),
       notes: t.Optional(t.String())
+  , packCount: t.Optional(t.Number())
     }),
     detail: { tags: ['Orders'] }
   }
@@ -64,6 +65,8 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
           vendorAvatar: o.vendorAvatar || o.vendorId?.avatar,
           items: o.items,
           total: o.total,
+          packCount: (o as any).packCount || 0,
+          packsPrice: (o as any).packsPrice || 0,
           address: o.address,
           status: o.status,
           createdAt: o.createdAt,
@@ -76,14 +79,16 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
     })
     .post('/', async ({ set, body, session }) => {
     try {
-  const { vendorId, items, address, notes, deliveryMode, deliveryLocation, deliveryPrice, deliveryInstructions } = body as any;
+  const { vendorId, items, address, notes, deliveryMode, deliveryLocation, deliveryPrice, deliveryInstructions, packCount } = body as any;
 
       const vendor = await Vendor.findById(vendorId);
       if (!vendor) return ErrorHandler.ValidationError(set, 'Vendor not found');
 
       const total = items.reduce((sum: number, it: any) => sum + (Number(it.price) * Number(it.quantity)), 0);
 
-      const order = await Order.create({
+  const resolvedPackCount = typeof packCount === 'number' && packCount > 0 ? packCount : 0;
+  const packsPrice = resolvedPackCount > 0 ? (Number(vendor.pricePerPack || 0) * resolvedPackCount) : 0;
+  const order = await Order.create({
         orderNumber: generateOrderNumber(),
   vendorId: new mongoose.Types.ObjectId(vendorId),
   vendorName: vendor.restaurantName,
@@ -96,11 +101,13 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
           quantity: Number(i.quantity),
           image: i.image,
         })),
-        total,
+  total: total + packsPrice + (typeof deliveryPrice === 'number' ? deliveryPrice : 0),
+  packCount: resolvedPackCount,
+  packsPrice,
         address,
         deliveryMode: deliveryMode || 'pickup',
         deliveryLocation,
-        deliveryPrice: typeof deliveryPrice === 'number' ? deliveryPrice : undefined,
+  deliveryPrice: typeof deliveryPrice === 'number' ? deliveryPrice : undefined,
         deliveryInstructions,
         status: 'Pending',
         notes,
@@ -193,7 +200,7 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
   // Public endpoint to place guest orders (no user session required)
   ordersRoutes.post('/guest', async ({ set, body }) => {
     try {
-      const { vendorId, items, address, notes, deliveryMode, deliveryLocation, deliveryPrice, deliveryInstructions, guestName, guestPhone } = body as any;
+  const { vendorId, items, address, notes, deliveryMode, deliveryLocation, deliveryPrice, deliveryInstructions, guestName, guestPhone, packCount } = body as any;
 
       if (!vendorId) return ErrorHandler.ValidationError(set, 'vendorId is required');
       if (!Array.isArray(items) || !items.length) return ErrorHandler.ValidationError(set, 'items are required');
@@ -205,7 +212,9 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
 
       const total = items.reduce((sum: number, it: any) => sum + (Number(it.price) * Number(it.quantity)), 0);
 
-      const order = await Order.create({
+  const resolvedPackCount = typeof packCount === 'number' && packCount > 0 ? packCount : 0;
+  const packsPrice = resolvedPackCount > 0 ? (Number(vendor.pricePerPack || 0) * resolvedPackCount) : 0;
+  const order = await Order.create({
         orderNumber: generateOrderNumber(),
         vendorId: new mongoose.Types.ObjectId(vendorId),
         vendorName: vendor.restaurantName,
@@ -220,7 +229,9 @@ const ordersRoutes = new Elysia({ prefix: '/orders' })
           quantity: Number(i.quantity),
           image: i.image,
         })),
-        total,
+  total: total + packsPrice + (typeof deliveryPrice === 'number' ? deliveryPrice : 0),
+  packCount: resolvedPackCount,
+  packsPrice,
         address,
         deliveryMode: deliveryMode || 'pickup',
         deliveryLocation,

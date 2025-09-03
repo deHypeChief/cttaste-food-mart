@@ -92,7 +92,8 @@ export const VendorValidator = {
             preparationTime: t.Optional(t.Number()),
             // Currency stays default NGN; taxRate removed from UI but kept optional for compatibility
             currency: t.Optional(t.String()),
-            taxRate: t.Optional(t.Number())
+            taxRate: t.Optional(t.Number()),
+            pricePerPack: t.Optional(t.Number())
         }),
         detail: {
             tags: ['Vendor']

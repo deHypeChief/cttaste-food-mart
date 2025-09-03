@@ -34,6 +34,7 @@ export default function Settings() {
     const [businessSettings, setBusinessSettings] = useState({
         preparationTime: "",
         deliveryLocations: [], // { location: string, price: number }
+    pricePerPack: "",
     });
 
     const [notifications, setNotifications] = useState({
@@ -88,6 +89,7 @@ export default function Settings() {
                 setBusinessSettings({
                     preparationTime: String(v.preparationTime ?? ""),
                     deliveryLocations: v.deliveryLocations || [],
+                        pricePerPack: v.pricePerPack !== undefined && v.pricePerPack !== null ? String(v.pricePerPack) : "",
                 });
                 setNotifications({
                     orderNotifications: v.orderNotifications !== undefined ? v.orderNotifications : true,
@@ -190,6 +192,7 @@ export default function Settings() {
             const payload = {
                 preparationTime: businessSettings.preparationTime ? Number(businessSettings.preparationTime) : undefined,
                 deliveryLocations: businessSettings.deliveryLocations || [],
+                pricePerPack: businessSettings.pricePerPack ? Number(businessSettings.pricePerPack) : undefined,
             };
             const res = await vendorAuthService.updateBusinessSettings(payload);
             // API Client returns response.data; SuccessHandler wraps vendor in data.vendor
@@ -198,6 +201,7 @@ export default function Settings() {
                 setBusinessSettings({
                     preparationTime: String(updatedVendor.preparationTime ?? ""),
                     deliveryLocations: updatedVendor.deliveryLocations || [],
+                    pricePerPack: updatedVendor.pricePerPack !== undefined && updatedVendor.pricePerPack !== null ? String(updatedVendor.pricePerPack) : (businessSettings.pricePerPack || ""),
                 });
             }
             setSuccess('Business settings updated');
@@ -290,7 +294,7 @@ export default function Settings() {
                                         )}
                                     </div>
                                     <div>
-                                        <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
+                                        <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif,.avif" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
                                         <Button variant="outlineFade" size="sm" onClick={() => avatarInputRef.current?.click()}>Upload Logo</Button>
                                         <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF up to 2MB</p>
                                     </div>
@@ -302,7 +306,7 @@ export default function Settings() {
                                     ) : (
                                         <div className="text-gray-500 text-sm flex items-center gap-2"><Icon icon="majesticons:image-line"/> Banner image</div>
                                     )}
-                                    <input ref={bannerInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
+                                    <input ref={bannerInputRef} type="file" accept="image/*,.heic,.heif,.avif" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
                                     <Button variant="outlineFade" size="sm" className="absolute bottom-2 right-2" onClick={() => bannerInputRef.current?.click()}>Upload Banner</Button>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF up to 2MB</p>
@@ -412,6 +416,14 @@ export default function Settings() {
                                     value={businessSettings.preparationTime}
                                     onChange={(e) => handleBusinessUpdate("preparationTime", e.target.value)}
                                     placeholder="30"
+                                />
+                            </FormField>
+                            <FormField label="Price Per Pack (if using pack ordering)">
+                                <Input
+                                    type="number"
+                                    value={businessSettings.pricePerPack || ''}
+                                    onChange={(e) => handleBusinessUpdate("pricePerPack", e.target.value)}
+                                    placeholder="e.g., 5000"
                                 />
                             </FormField>
                             {/* Currency fixed to NGN, Tax rate removed */}

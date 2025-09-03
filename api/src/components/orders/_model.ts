@@ -26,6 +26,8 @@ export interface IOrder extends mongoose.Document {
   deliveryInstructions?: string; // User-provided description of home/location
   status: 'Pending' | 'Accepted' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled';
   notes?: string;
+  packCount?: number;
+  packsPrice?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +58,8 @@ const orderSchema = new mongoose.Schema<IOrder>({
   vendorPublicKey: { type: String, default: '' },
   status: { type: String, enum: ['Pending', 'Accepted', 'Preparing', 'Ready', 'Completed', 'Cancelled'], default: 'Pending', index: true },
   notes: { type: String },
+  packCount: { type: Number, default: 0 },
+  packsPrice: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export const Order = mongoose.model<IOrder>('Order', orderSchema);

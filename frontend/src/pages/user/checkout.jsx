@@ -69,7 +69,7 @@ export default function Checkout() {
                     }
                 });
                 setVendorsInfo(next);
-            } catch (err) { /* ignore */ }
+            } catch (_e) { /* ignore */ }
         })();
         return () => { alive = false; };
     }, [groups, vendorsInfo]);
@@ -105,7 +105,19 @@ export default function Checkout() {
         return fee;
     }, [deliveryOption, groups, vendorsInfo, deliverySelections]);
 
-    const grandTotal = itemsTotal + deliveryFees;
+    // Compute total packs price based on distinct packs per vendor * vendor.pricePerPack
+    const packsPriceTotal = useMemo(() => {
+        let sum = 0;
+        for (const vid of groups.keys()) {
+            const v = vendorsInfo[vid];
+            if (!v || !v.pricePerPack) continue;
+            const count = Object.keys(packGroups[vid] || {}).length;
+            if (count > 0) sum += Number(v.pricePerPack) * count;
+        }
+        return sum;
+    }, [groups, vendorsInfo, packGroups]);
+
+    const grandTotal = itemsTotal + deliveryFees + packsPriceTotal;
 
     const customer = {
         name: user?.session?.fullName || user?.user?.username || '—',
@@ -156,6 +168,8 @@ export default function Checkout() {
                     ? (isCustomer ? customer.address : (guestAddress || customer.address))
                     : (vinfo?.address || vinfo?.location || 'Pickup at vendor');
                 const sel = deliverySelections[vendorId];
+                const vendorPackGroups = packGroups[vendorId] || {};
+                const packCount = Object.keys(vendorPackGroups).length;
                 const base = {
                     vendorId,
                     address: addr,
@@ -170,6 +184,7 @@ export default function Checkout() {
                         quantity: Number(it.quantity),
                         image: it.image,
                     })),
+                    packCount: packCount || undefined,
                 };
                 if (!isCustomer) {
                     base.guestName = guestName || 'Guest';
@@ -240,7 +255,15 @@ export default function Checkout() {
                         }
                         const deliveryPrice = Number(p.deliveryPrice || 0);
                         const vendorSubtotal = (p.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
-                        const vendorTotal = vendorSubtotal + deliveryPrice;
+                        // Compute pack pricing if vendor has pricePerPack and packs exist
+                        const packCount = (() => {
+                            const vpg = packGroups[p.vendorId] || {};
+                            const ids = Object.keys(vpg);
+                            return ids.length;
+                        })();
+                        const pricePerPack = Number(v?.pricePerPack || 0);
+                        const packsPrice = packCount > 0 && pricePerPack > 0 ? packCount * pricePerPack : 0;
+                        const vendorTotal = vendorSubtotal + deliveryPrice + packsPrice;
                         // itemCount not used in new message format
 
                         // Build WhatsApp message in the requested layout
@@ -275,8 +298,11 @@ export default function Checkout() {
                             msg += `\n`;
                         }
 
-                        // Totals
-                        msg += `SUB TOTAL : ₦${vendorSubtotal.toLocaleString()} 💰\n`;
+                        // Totals (include packs line if applicable)
+                        msg += `SUB TOTAL (Items) : ₦${vendorSubtotal.toLocaleString()} 💰\n`;
+                        if (packsPrice > 0) {
+                            msg += `PACKS (${packCount} x ₦${pricePerPack.toLocaleString()}) : ₦${packsPrice.toLocaleString()} 📦\n`;
+                        }
                         msg += `DELIVERY PRICE : ₦${deliveryPrice.toLocaleString()} 🚚\n`;
                         msg += `TOTAL PRICE : ₦${vendorTotal.toLocaleString()} ✅\n`;
                         // Prefer guest info from payload when available, otherwise fall back to authenticated customer
@@ -480,6 +506,12 @@ export default function Checkout() {
                                     <p className="font-medium text-[1rem]">Items({items?.length || 0})</p>
                                     <p className="font-medium text-[1rem]">₦ {itemsTotal.toLocaleString()}</p>
                                 </div>
+                                {packsPriceTotal > 0 && (
+                                    <div className="flex justify-between items-center opacity-60">
+                                        <p className="font-medium text-[1rem]">Packs</p>
+                                        <p className="font-medium text-[1rem]">₦ {packsPriceTotal.toLocaleString()}</p>
+                                    </div>
+                                )}
                                 {deliveryOption === 'doorstep' && Array.from(groups.keys()).map((vid) => {
                                     const v = vendorsInfo[vid];
                                     const sel = deliverySelections[vid];
