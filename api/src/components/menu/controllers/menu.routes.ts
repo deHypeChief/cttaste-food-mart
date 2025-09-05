@@ -6,7 +6,8 @@ import { MenuItem } from '../_model';
 import { Vendor } from '../../vendors/_model';
 import cloudinary from '../../../configs/cloudinary.config';
 
-const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+// Increased max upload size to 5MB to better support HEIC/modern high-res mobile images
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const menuRoutes = new Elysia({ prefix: '/menu' })
     .use(isSessionAuth('vendor'))
@@ -95,7 +96,7 @@ const menuRoutes = new Elysia({ prefix: '/menu' })
             console.log('File details:', { name: file.name, size: file.size, type: file.type });
             
             if (file.size > MAX_FILE_SIZE) {
-                return ErrorHandler.ValidationError(set, 'Image exceeds 1MB limit');
+                return ErrorHandler.ValidationError(set, 'Image exceeds 5MB limit');
             }
 
             // Basic MIME allowance: accept typical image types and HEIC/HEIF
@@ -120,11 +121,11 @@ const menuRoutes = new Elysia({ prefix: '/menu' })
             const upload = await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_stream(
                     {
-                            folder: 'cttaste/menu',
-                            transformation: [{ width: 800, height: 800, crop: 'limit' }],
-                            // allow Cloudinary to detect/convert HEIC/HEIF by using 'auto'
-                            resource_type: 'auto'
-                        },
+                        folder: 'cttaste/menu',
+                        // Add automatic format conversion & compression for HEIC/AVIF and large images
+                        transformation: [{ width: 800, height: 800, crop: 'limit', fetch_format: 'auto', quality: 'auto' }],
+                        resource_type: 'auto'
+                    },
                     (error, result) => {
                         if (error) {
                             console.error('Cloudinary upload error:', error);

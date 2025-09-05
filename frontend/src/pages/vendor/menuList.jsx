@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+// Dynamic import of heic2any when needed to avoid adding weight to initial bundle
 import { Icon } from "@iconify/react";
 import { DashboardCard } from "../../components/dashboardCard";
 import { Input, FormField } from "../../components/form";
@@ -66,13 +67,34 @@ export default function MenuList() {
     loadItems();
   }, []);
 
-  const onSelectImageNew = (file) => {
+  const onSelectImageNew = async (file) => {
     if (!file) return;
-    if (file.size > 1024 * 1024) {
-      setError('Image exceeds 1MB limit');
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image exceeds 5MB limit');
       return;
     }
     setError("");
+
+    // Handle HEIC/HEIF preview (Safari / some browsers won't render directly)
+    const lowerName = (file.name || '').toLowerCase();
+    const isHeic = lowerName.endsWith('.heic') || lowerName.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+    if (isHeic) {
+      try {
+        // heic2any prefers ArrayBuffer
+        const { default: heic2any } = await import('heic2any');
+        const arrayBuffer = await file.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+        const converted = await heic2any({ blob, toType: 'image/jpeg', quality: 0.9 });
+        // heic2any may return a single Blob or an array
+        const convBlob = Array.isArray(converted) ? converted[0] : converted;
+        const newFile = new File([convBlob], file.name.replace(/\.hei[c|f]$/i, '.jpg'), { type: 'image/jpeg' });
+        setNewItem(prev => ({ ...prev, imageFile: newFile, _originalHeicFile: file }));
+      } catch (convErr) {
+        console.warn('HEIC conversion failed, falling back to original file. It may not preview in this browser.', convErr);
+        setNewItem(prev => ({ ...prev, imageFile: file }));
+      }
+      return;
+    }
     setNewItem(prev => ({ ...prev, imageFile: file }));
   };
 
@@ -293,7 +315,7 @@ export default function MenuList() {
               {formError && (
                 <p className="text-red-600 text-sm">{formError}</p>
               )}
-              <FormField label="Image (max 1MB)">
+              <FormField label="Image (max 5MB)">
                 <div
                   className={`rounded-xl border-2 border-dashed transition-colors ${dragOver ? 'border-primary bg-orange-50' : 'border-gray-300 bg-white'} p-4 md:p-6 flex items-center gap-4 cursor-pointer`}
                   onClick={onBrowseClick}
@@ -343,7 +365,7 @@ export default function MenuList() {
                         <p className="text-sm text-gray-700">
                           <span className="text-primary font-medium">Click to upload</span> or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500">PNG, JPG, HEIC/HEIF up to 1MB</p>
+                        <p className="text-xs text-gray-500">PNG, JPG, HEIC/HEIF/AVIF <br />up to 5MB (HEIC auto-converts for preview)</p>
                       </div>
                     </div>
                   )}

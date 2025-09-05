@@ -12,13 +12,14 @@
   "dependencies": {
     "@iconify/react": "^6.0.0",
     "@tailwindcss/vite": "^4.1.11",
-  "zustand": "^4.4.0",
     "axios": "^1.11.0",
+    "heic2any": "^0.0.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.0",
     "recharts": "^3.1.2",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

@@ -221,14 +221,30 @@ export default function Settings() {
 
     const uploadBanner = async (file) => {
         if (!file) return;
-        const MAX_BANNER = 2 * 1024 * 1024; // 2MB
-        if (file.size > MAX_BANNER) {
-            toast.error('Banner image exceeds 2MB limit', 'Upload failed');
+        let workingFile = file;
+        try {
+            const lower = (file.name || '').toLowerCase();
+            const isHeic = lower.endsWith('.heic') || lower.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+            if (isHeic) {
+                const { default: heic2any } = await import('heic2any');
+                const arrayBuffer = await file.arrayBuffer();
+                const blob = new Blob([arrayBuffer]);
+                const converted = await heic2any({ blob, toType: 'image/jpeg', quality: 0.9 });
+                const convBlob = Array.isArray(converted) ? converted[0] : converted;
+                workingFile = new File([convBlob], file.name.replace(/\.hei[c|f]$/i, '.jpg'), { type: 'image/jpeg' });
+            }
+        } catch (err) {
+            // If conversion fails we proceed with original file; preview/browser support may vary
+            console.warn('HEIC banner conversion failed, using original file.', err);
+        }
+        const MAX_BANNER = 5 * 1024 * 1024; // 5MB
+        if (workingFile.size > MAX_BANNER) {
+            toast.error('Banner image exceeds 5MB limit', 'Upload failed');
             return;
         }
         try {
             setLoading(true); setError(""); setSuccess("");
-            const res = await vendorService.uploadBanner(file);
+            const res = await vendorService.uploadBanner(workingFile);
             const v = res?.data?.vendor;
             setProfileData(prev => ({ ...prev, banner: v?.banner || prev.banner }));
             setSuccess('Banner updated');
@@ -238,14 +254,29 @@ export default function Settings() {
 
     const uploadAvatar = async (file) => {
         if (!file) return;
-        const MAX = 2 * 1024 * 1024; // 2MB
-        if (file.size > MAX) {
-            toast.error('Logo exceeds 2MB limit', 'Upload failed');
+        let workingFile = file;
+        try {
+            const lower = (file.name || '').toLowerCase();
+            const isHeic = lower.endsWith('.heic') || lower.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+            if (isHeic) {
+                const { default: heic2any } = await import('heic2any');
+                const arrayBuffer = await file.arrayBuffer();
+                const blob = new Blob([arrayBuffer]);
+                const converted = await heic2any({ blob, toType: 'image/jpeg', quality: 0.9 });
+                const convBlob = Array.isArray(converted) ? converted[0] : converted;
+                workingFile = new File([convBlob], file.name.replace(/\.hei[c|f]$/i, '.jpg'), { type: 'image/jpeg' });
+            }
+        } catch (err) {
+            console.warn('HEIC avatar conversion failed, using original file.', err);
+        }
+        const MAX = 5 * 1024 * 1024; // 5MB
+        if (workingFile.size > MAX) {
+            toast.error('Logo exceeds 5MB limit', 'Upload failed');
             return;
         }
         try {
             setLoading(true); setError(""); setSuccess("");
-            const res = await vendorService.uploadAvatar(file);
+            const res = await vendorService.uploadAvatar(workingFile);
             const v = res?.data?.vendor;
             setProfileData(prev => ({ ...prev, avatar: v?.avatar || prev.avatar }));
             setSuccess('Logo updated');
@@ -296,7 +327,7 @@ export default function Settings() {
                                     <div>
                                         <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif,.avif" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
                                         <Button variant="outlineFade" size="sm" onClick={() => avatarInputRef.current?.click()}>Upload Logo</Button>
-                                        <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF up to 2MB</p>
+                                        <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF/AVIF up to 5MB (HEIC auto-converts to JPEG)</p>
                                     </div>
                                 </div>
 
@@ -309,7 +340,7 @@ export default function Settings() {
                                     <input ref={bannerInputRef} type="file" accept="image/*,.heic,.heif,.avif" className="hidden" onChange={(e) => uploadBanner(e.target.files?.[0])} />
                                     <Button variant="outlineFade" size="sm" className="absolute bottom-2 right-2" onClick={() => bannerInputRef.current?.click()}>Upload Banner</Button>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF up to 2MB</p>
+                                <p className="text-xs text-gray-500 mt-1">PNG, JPG, HEIC/HEIF/AVIF up to 5MB (HEIC auto-converts to JPEG)</p>
                                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div>
                                         <h3 className="font-medium text-gray-900">Restaurant Availability</h3>

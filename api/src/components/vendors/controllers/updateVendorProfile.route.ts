@@ -108,6 +108,11 @@ const updateVendorProfile = new Elysia()
             const file = formData.get('image') as File;
             if (!file) return ErrorHandler.ValidationError(set, 'Image file is required');
 
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            if (file.size > MAX_SIZE) {
+                return ErrorHandler.ValidationError(set, 'Banner exceeds 5MB limit');
+            }
+
             // Allow common image types and HEIC/HEIF (browsers may omit MIME for HEIC)
             const allowed = [
                 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif',
@@ -126,7 +131,7 @@ const updateVendorProfile = new Elysia()
             const buffer = Buffer.from(arrayBuffer);
             const upload = await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_stream(
-                    { folder: 'cttaste/vendors/banner', transformation: [{ width: 1600, height: 600, crop: 'limit' }], resource_type: 'auto' },
+                    { folder: 'cttaste/vendors/banner', transformation: [{ width: 1600, height: 600, crop: 'limit', fetch_format: 'auto', quality: 'auto' }], resource_type: 'auto' },
                     (error, result) => {
                         if (error) reject(error); else resolve(result);
                     }
@@ -150,6 +155,11 @@ const updateVendorProfile = new Elysia()
             const file = formData.get('image') as File;
             if (!file) return ErrorHandler.ValidationError(set, 'Image file is required');
 
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            if (file.size > MAX_SIZE) {
+                return ErrorHandler.ValidationError(set, 'Avatar exceeds 5MB limit');
+            }
+
             const allowed2 = [
                 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif',
                 'image/heic-sequence', 'image/heif-sequence', 'image/avif'
@@ -166,7 +176,7 @@ const updateVendorProfile = new Elysia()
             const buffer = Buffer.from(arrayBuffer);
             const upload = await new Promise((resolve, reject) => {
                 cloudinary.uploader.upload_stream(
-                    { folder: 'cttaste/vendors/avatar', transformation: [{ width: 300, height: 300, crop: 'limit' }], resource_type: 'auto' },
+                    { folder: 'cttaste/vendors/avatar', transformation: [{ width: 300, height: 300, crop: 'limit', fetch_format: 'auto', quality: 'auto' }], resource_type: 'auto' },
                     (error, result) => { if (error) reject(error); else resolve(result); }
                 ).end(buffer);
             });
